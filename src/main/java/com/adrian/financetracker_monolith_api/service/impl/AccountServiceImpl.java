@@ -27,6 +27,7 @@ public class AccountServiceImpl implements AccountService {
     private final AccountMapper mapper;
 
     @Override
+    @Transactional
     public AccountResponse createAccount(AccountRequest request) {
         Account account = Account.builder()
                 // Esperar a la Autenticación

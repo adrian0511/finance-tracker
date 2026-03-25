@@ -33,6 +33,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final AccountRepository accountRepository;
 
     @Override
+    @Transactional
     public TransactionResponse createTransaction(TransactionRequest request) {
 
         Account account = accountRepository.findById(request.getAccountId()).orElseThrow(
@@ -72,6 +73,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TransactionResponse> getByAccount(UUID accountId) {
         return repository.findByAccountId(accountId).stream()
                 .map(mapper::toResponse)
@@ -79,6 +81,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public void delete(UUID id) {
         if (!repository.existsById(id))
             throw new TransactionNotFoundException("Transaction not found with id: " + id);
