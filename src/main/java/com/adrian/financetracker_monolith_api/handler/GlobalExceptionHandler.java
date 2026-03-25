@@ -1,0 +1,106 @@
+package com.adrian.financetracker_monolith_api.handler;
+
+import java.time.LocalDateTime;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.adrian.financetracker_monolith_api.dto.error.ErrorResponse;
+import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
+import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
+import com.adrian.financetracker_monolith_api.exception.transaction.TransactionNotFoundException;
+import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+        @ExceptionHandler(UserNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException exception,
+                        HttpServletRequest request) {
+                ErrorResponse error = ErrorResponse.builder()
+                                .message(exception.getMessage())
+                                .path(request.getRequestURI())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
+        @ExceptionHandler(AccountNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleAccountNotFoundException(AccountNotFoundException exception,
+                        HttpServletRequest request) {
+                ErrorResponse error = ErrorResponse.builder()
+                                .message(exception.getMessage())
+                                .path(request.getRequestURI())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
+        @ExceptionHandler(TransactionNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleTransactionNotFoundException(TransactionNotFoundException exception,
+                        HttpServletRequest request) {
+                ErrorResponse error = ErrorResponse.builder()
+                                .message(exception.getMessage())
+                                .path(request.getRequestURI())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
+        @ExceptionHandler(InsufficientBalanceException.class)
+        public ResponseEntity<ErrorResponse> handleInsufficientBalanceException(
+                        InsufficientBalanceException exception,
+                        HttpServletRequest request) {
+                ErrorResponse error = ErrorResponse.builder()
+                                .message(exception.getMessage())
+                                .path(request.getRequestURI())
+                                .status(HttpStatus.CONFLICT.value())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
+
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex,
+                        HttpServletRequest request) {
+                String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                                .findFirst()
+                                .orElse("Validation error");
+
+                ErrorResponse error = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .message(errorMessage)
+                                .path(request.getRequestURI())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+        }
+
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<ErrorResponse> handleGenericException(Exception ex,
+                        HttpServletRequest request) {
+                ErrorResponse error = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                                .message("An unexpected error occurred")
+                                .path(request.getRequestURI())
+                                .build();
+
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+
+}
