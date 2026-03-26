@@ -1,22 +1,26 @@
 spring:
-    application:
-        name: financetracker-monolith-api
+  application:
+    name: financetracker-monolith-api
 
-    datasource:
-        url: jdbc:postgresql://localhost:5432/financetracker
-        username: financetracker_user
-        password: 12345
-        driver-class-name: org.postgresql.Driver
+  datasource:
+    url: jdbc:postgresql://localhost:5432/financetracker
+    username: financetracker_user
+    password: 12345
+    driver-class-name: org.postgresql.Driver
 
-    jpa:
-        database-platform: org.hibernate.dialect.PostgreSQLDialect
-        show-sql: true
-        hibernate:
-            ddl-auto: update
-        properties:
-            hibernate:
-                format-sql: true
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format-sql: true
 
 jwt:
-    secret: QWRyaWFuMDMxMCBtaSBjbGF2ZSBlcyBtdXkgc2VndXJh
-    expiration: 30
+  secret: QWRyaWFuMDMxMCBtaSBjbGF2ZSBlcyBtdXkgc2VndXJh
+  expiration: 30
+
+ai:
+  api-key: ${API_KEY}
+
