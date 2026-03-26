@@ -2,7 +2,7 @@ package com.adrian.financetracker_monolith_api.dto.user;
 
 import java.util.UUID;
 
-import javax.management.relation.Role;
+import com.adrian.financetracker_monolith_api.util.Role;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
