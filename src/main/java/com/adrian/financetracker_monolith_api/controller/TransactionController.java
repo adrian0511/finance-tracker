@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,21 +34,25 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@securityEvaluator.isTransactionOwner(#id,authentication) or hasRole('ADMIN')")
     public ResponseEntity<TransactionResponse> getTransactionById(@PathVariable UUID id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
     @GetMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")
     public ResponseEntity<List<TransactionResponse>> getTransactionByUser(@PathVariable("id") UUID userId) {
         return ResponseEntity.ok(service.getByUser(userId));
     }
 
     @GetMapping("/accounts/{id}")
+    @PreAuthorize("@securityEvaluator.isAccountOwner(#accountId,authentication) or hasRole('ADMIN')")
     public ResponseEntity<List<TransactionResponse>> getTransactionByAccount(@PathVariable("id") UUID accountId) {
         return ResponseEntity.ok(service.getByAccount(accountId));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
         service.delete(id);
 

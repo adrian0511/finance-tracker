@@ -3,6 +3,7 @@ package com.adrian.financetracker_monolith_api.security.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -22,12 +23,14 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter authenticationFilter;
+    private  final AuthenticationProvider authenticationProvider;
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) {
         return http
                 .csrf(CsrfConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/auth/**")
                         .permitAll()

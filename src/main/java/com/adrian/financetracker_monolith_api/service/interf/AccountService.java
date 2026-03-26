@@ -5,10 +5,12 @@ import java.util.UUID;
 
 import com.adrian.financetracker_monolith_api.dto.account.AccountRequest;
 import com.adrian.financetracker_monolith_api.dto.account.AccountResponse;
+import com.adrian.financetracker_monolith_api.security.userdetails.CustomUserDetails;
+import org.springframework.security.core.Authentication;
 
 public interface AccountService {
 
-    AccountResponse createAccount(AccountRequest request);
+    AccountResponse createAccount(AccountRequest request, UUID userId);
 
     AccountResponse getById(UUID id);
 

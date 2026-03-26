@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 
 @Configuration
 @RequiredArgsConstructor
-public class SecurityBeansInyector {
+public class SecurityBeansInjector {
 
     private final UserRepository repository;
 

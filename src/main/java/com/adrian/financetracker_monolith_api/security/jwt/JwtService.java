@@ -37,10 +37,6 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractRole(String jwt) {
-        return extractAllClaims(jwt).get("role", String.class);
-    }
-
     public String extractUsername(String jwt) {
         return extractAllClaims(jwt).getSubject();
     }
@@ -56,10 +52,6 @@ public class JwtService {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    public String extractId(String token) {
-        return extractAllClaims(token).get("userId", String.class);
     }
 
     public Date extractExpiration(String token) {

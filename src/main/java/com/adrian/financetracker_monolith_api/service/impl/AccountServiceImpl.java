@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.adrian.financetracker_monolith_api.entity.User;
+import com.adrian.financetracker_monolith_api.repository.UserRepository;
+import com.adrian.financetracker_monolith_api.security.userdetails.CustomUserDetails;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +30,19 @@ public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository repository;
     private final AccountMapper mapper;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
-    public AccountResponse createAccount(AccountRequest request) {
+    public AccountResponse createAccount(AccountRequest request, UUID userId) {
+
+     User user = userRepository.findById(userId)
+             .orElseThrow(()-> new UsernameNotFoundException("User not found with id: "+userId));
+
         Account account = Account.builder()
-                // Esperar a la Autenticación
+                .user(user)
+                .name(request.getName())
+                .balance(BigDecimal.valueOf(0.0))
                 .build();
 
         return mapper.toResponse(repository.save(account));
@@ -67,7 +79,7 @@ public class AccountServiceImpl implements AccountService {
         Account account = repository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found with id: " + accountId));
 
-        Double total = amount + account.getBalance().doubleValue();
+        double total = amount + account.getBalance().doubleValue();
 
         account.setBalance(BigDecimal.valueOf(total));
 
@@ -80,7 +92,7 @@ public class AccountServiceImpl implements AccountService {
         Account account = repository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found with id: " + accountId));
 
-        Double currentBalance = account.getBalance().doubleValue();
+        double currentBalance = account.getBalance().doubleValue();
 
         if (currentBalance < amount)
             throw new InsufficientBalanceException("The balance is insufficient to perfom the extraction");

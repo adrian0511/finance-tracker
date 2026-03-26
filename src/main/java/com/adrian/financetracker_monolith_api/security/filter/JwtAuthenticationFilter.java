@@ -4,10 +4,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
+import com.adrian.financetracker_monolith_api.security.userdetails.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -25,6 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private UserDetailsService userDetailsService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -40,16 +45,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (jwtService.validateToken(jwt)) {
 
             String username = jwtService.extractUsername(jwt);
-            String role = jwtService.extractRole(jwt);
-            String id = jwtService.extractId(jwt);
+            CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(username);
 
-            User user = User.builder()
-                    .username(username)
-                    .id(UUID.fromString(id))
-                    .build();
-
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(user, null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null,userDetails.getAuthorities());
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
