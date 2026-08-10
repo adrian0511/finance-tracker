@@ -1,5 +1,6 @@
 package com.adrian.financetracker_monolith_api.service.interf;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,8 +19,8 @@ public interface AccountService {
 
     void delete(UUID id);
 
-    void increaseBalance(Double amount, UUID accountId);
+    void increaseBalance(BigDecimal amount, UUID accountId);
 
-    void decreaseBalance(Double amount, UUID accountId);
+    void decreaseBalance(BigDecimal amount, UUID accountId);
 
 }

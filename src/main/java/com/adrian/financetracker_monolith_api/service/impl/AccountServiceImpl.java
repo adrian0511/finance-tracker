@@ -42,7 +42,7 @@ public class AccountServiceImpl implements AccountService {
         Account account = Account.builder()
                 .user(user)
                 .name(request.getName())
-                .balance(BigDecimal.valueOf(0.0))
+                .balance(BigDecimal.ZERO)
                 .build();
 
         return mapper.toResponse(repository.save(account));
@@ -75,31 +75,27 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
-    public void increaseBalance(Double amount, UUID accountId) {
+    public void increaseBalance(BigDecimal amount, UUID accountId) {
         Account account = repository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found with id: " + accountId));
 
-        double total = amount + account.getBalance().doubleValue();
-
-        account.setBalance(BigDecimal.valueOf(total));
+        account.setBalance(account.getBalance().add(amount));
 
         repository.save(account);
     }
 
     @Override
     @Transactional
-    public void decreaseBalance(Double amount, UUID accountId) {
+    public void decreaseBalance(BigDecimal amount, UUID accountId) {
         Account account = repository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found with id: " + accountId));
 
-        double currentBalance = account.getBalance().doubleValue();
+        BigDecimal currentBalance = account.getBalance();
 
-        if (currentBalance < amount)
+        if (currentBalance.compareTo(amount) < 0)
             throw new InsufficientBalanceException("The balance is insufficient to perfom the extraction");
 
-        currentBalance -= amount;
-
-        account.setBalance(BigDecimal.valueOf(currentBalance));
+        account.setBalance(currentBalance.subtract(amount));
 
         repository.save(account);
     }

@@ -48,9 +48,9 @@ public class TransactionServiceImpl implements TransactionService {
                 .build();
 
         if (transaction.getType().equals(Type.INCOME)) {
-            accountService.increaseBalance(transaction.getAmount().doubleValue(), request.getAccountId());
+            accountService.increaseBalance(transaction.getAmount(), request.getAccountId());
         } else {
-            accountService.decreaseBalance(transaction.getAmount().doubleValue(), request.getAccountId());
+            accountService.decreaseBalance(transaction.getAmount(), request.getAccountId());
         }
 
         return mapper.toResponse(repository.save(transaction));
@@ -81,10 +81,18 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public void delete(UUID id) {
-        if (!repository.existsById(id))
-            throw new TransactionNotFoundException("Transaction not found with id: " + id);
+        Transaction transaction = repository.findById(id)
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found with id: " + id));
+
+        UUID accountId = transaction.getAccount().getId();
+
+        if (transaction.getType().equals(Type.INCOME)) {
+            accountService.decreaseBalance(transaction.getAmount(), accountId);
+        } else {
+            accountService.increaseBalance(transaction.getAmount(), accountId);
+        }
 
         repository.deleteById(id);
     }
