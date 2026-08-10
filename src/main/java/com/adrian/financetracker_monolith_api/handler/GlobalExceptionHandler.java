@@ -1,6 +1,7 @@
 package com.adrian.financetracker_monolith_api.handler;
 
 import com.adrian.financetracker_monolith_api.dto.error.ErrorResponse;
+import com.adrian.financetracker_monolith_api.exception.account.AccountHasTransactionsException;
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
 import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
@@ -76,6 +77,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientBalanceException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientBalanceException(
             InsufficientBalanceException exception,
+            HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message(exception.getMessage())
+                .path(request.getRequestURI())
+                .status(HttpStatus.CONFLICT.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(AccountHasTransactionsException.class)
+    public ResponseEntity<ErrorResponse> handleAccountHasTransactionsException(
+            AccountHasTransactionsException exception,
             HttpServletRequest request) {
         ErrorResponse error = ErrorResponse.builder()
                 .message(exception.getMessage())

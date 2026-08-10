@@ -20,6 +20,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findByAccountId(UUID accountId);
 
+    boolean existsByAccountId(UUID accountId);
+
     @Query("""
             SELECT t FROM Transaction t
             JOIN t.account c

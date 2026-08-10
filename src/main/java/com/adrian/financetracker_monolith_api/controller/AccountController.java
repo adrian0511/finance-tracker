@@ -49,7 +49,7 @@ public class AccountController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@securityEvaluator.isAccountOwner(#id,authentication) or hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAccount(@PathVariable UUID id) {
         service.delete(id);
 

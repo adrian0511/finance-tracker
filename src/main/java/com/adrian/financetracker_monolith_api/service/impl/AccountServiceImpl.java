@@ -15,11 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.adrian.financetracker_monolith_api.dto.account.AccountRequest;
 import com.adrian.financetracker_monolith_api.dto.account.AccountResponse;
 import com.adrian.financetracker_monolith_api.entity.Account;
+import com.adrian.financetracker_monolith_api.exception.account.AccountHasTransactionsException;
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
 import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
 import com.adrian.financetracker_monolith_api.mapper.AccountMapper;
 import com.adrian.financetracker_monolith_api.repository.AccountRepository;
+import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.service.interf.AccountService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository repository;
     private final AccountMapper mapper;
     private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
 
     @Override
     @Transactional
@@ -69,6 +72,12 @@ public class AccountServiceImpl implements AccountService {
     public void delete(UUID id) {
         if (!repository.existsById(id))
             throw new AccountNotFoundException("Account not found with id: " + id);
+
+        // Transaction.account_id es NOT NULL y no hay cascada: sin este control el borrado
+        // reventaria contra la foreign key y el handler generico lo devolveria como un 500.
+        if (transactionRepository.existsByAccountId(id))
+            throw new AccountHasTransactionsException(
+                    "The account has transactions and cannot be deleted with id: " + id);
 
         repository.deleteById(id);
     }
