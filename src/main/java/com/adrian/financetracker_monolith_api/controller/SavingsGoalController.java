@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalRequest;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalResponse;
+import com.adrian.financetracker_monolith_api.dto.goal.SavingsProjectionResponse;
 import com.adrian.financetracker_monolith_api.security.userdetails.CustomUserDetails;
 import com.adrian.financetracker_monolith_api.service.interf.SavingsGoalService;
 
@@ -38,6 +39,13 @@ public class SavingsGoalController {
     @GetMapping
     public ResponseEntity<List<SavingsGoalResponse>> getGoals(@AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(service.getByUser(user.getId()));
+    }
+
+    // La validacion de ownership vive en el servicio (findByIdAndUserId), como en delete.
+    @GetMapping("/{id}/projection")
+    public ResponseEntity<SavingsProjectionResponse> getProjection(@PathVariable UUID id,
+                                                                   @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(service.project(id, user.getId()));
     }
 
     @DeleteMapping("/{id}")

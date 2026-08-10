@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalRequest;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalResponse;
+import com.adrian.financetracker_monolith_api.dto.goal.SavingsProjectionResponse;
 
 public interface SavingsGoalService {
 
@@ -13,5 +14,7 @@ public interface SavingsGoalService {
     List<SavingsGoalResponse> getByUser(UUID userId);
 
     void delete(UUID id, UUID userId);
+
+    SavingsProjectionResponse project(UUID goalId, UUID userId);
 
 }
