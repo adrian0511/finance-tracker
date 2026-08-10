@@ -1,0 +1,129 @@
+# CLAUDE.md
+
+Guía de contexto para Claude Code en este repositorio. Léela antes de tocar código.
+
+## Qué es este proyecto
+
+**FinanceTracker Monolith-API**: backend Spring Boot para gestión de finanzas
+personales (cuentas, transacciones, reportes) con un asistente de IA integrado.
+Es un monolito, un solo módulo Maven.
+
+## Stack
+
+- Java 21, Spring Boot 4.0.4
+- Spring Data JPA + PostgreSQL
+- Spring Security con JWT (stateless, sin sesiones)
+- Lombok (usa `@Getter/@Setter/@Builder/@RequiredArgsConstructor`, casi nunca getters/setters manuales)
+- MapStruct (`componentModel = "spring"`) para mapear entidad → DTO
+- `prompt-link` (librería propia, `io.github.adrian0511:prompt-link`) para hablar con
+  modelos de IA vía OpenRouter (`AiService.generate(prompt).getContent()`)
+
+## Arquitectura y convenciones — SIGUE ESTE PATRÓN SIEMPRE
+
+```
+src/main/java/com/adrian/financetracker_monolith_api/
+├── controller/     # Endpoints REST. @RestController + @RequiredArgsConstructor
+├── service/
+│   ├── interf/     # Interfaces de servicio (ej. AccountService)
+│   └── impl/       # Implementaciones (ej. AccountServiceImpl)
+├── repository/     # Spring Data JPA. @Repository, interfaces extends JpaRepository
+├── entity/         # @Entity JPA. Lombok @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+├── dto/<dominio>/  # Un subpaquete por dominio: dto/account, dto/transaction, dto/goal...
+├── mapper/         # MapStruct, un mapper por entidad
+├── exception/<dominio>/  # Una excepción custom por caso, extiende RuntimeException
+├── handler/        # GlobalExceptionHandler único con @RestControllerAdvice
+├── security/       # JWT, filtros, config, evaluadores de ownership
+└── util/           # Enums (Role, Type)
+```
+
+**Reglas concretas que ya sigue el código y hay que respetar:**
+
+- Todas las entidades usan `UUID` como id, generado con `@GeneratedValue(strategy = GenerationType.UUID)`.
+- Todo monto de dinero es `BigDecimal`, nunca `double`/`Double`, y de punta a punta: entidad,
+  DTO, parámetros de servicio y operaciones (`add`/`subtract`, y `compareTo` en vez de `equals`
+  para comparar, porque ignora la escala: `10.00` vs `10.0`).
+- Cada excepción custom vive en su propio subpaquete de `exception/` y se registra en
+  `handler/GlobalExceptionHandler.java` con un `@ExceptionHandler` que arma un `ErrorResponse`
+  (`message`, `timestamp`, `status`, `path`).
+- Los servicios que necesitan el usuario autenticado reciben `UUID userId` como parámetro;
+  los controllers lo extraen con `@AuthenticationPrincipal CustomUserDetails user` y
+  `user.getId()`. Nunca confíes en un `userId` que venga en el body/path sin validar ownership.
+- Ownership entre recursos (¿esta cuenta/transacción es del usuario autenticado?) se valida
+  con `@PreAuthorize` en el controller, usando `securityEvaluator` (`security/evaluator/`) o
+  comparando contra `authentication.principal.id`. **Todo endpoint que recibe un id de recurso
+  ajeno al usuario debe tener esta validación**, tanto si llega por path como por body
+  (`@PreAuthorize("@securityEvaluator.isAccountOwner(#request.accountId, authentication) or hasRole('ADMIN')")`).
+- DTOs de request llevan validación con `jakarta.validation` (`@NotBlank`, `@NotNull`,
+  `@DecimalMin`, etc.) y los controllers los reciben con `@RequestBody @Valid`.
+- Los mappers MapStruct usan `@Mapping(target = "xId", source = "x.id")` para aplanar
+  relaciones `@ManyToOne` en el DTO de respuesta.
+- Modelo de dominio: `User → Account → Transaction`. Las transacciones no conocen
+  directamente al usuario (se llega vía `transaction.account.user`).
+
+## Comandos
+
+```bash
+./mvnw compile          # compilar
+./mvnw test              # tests (si existen para el módulo que tocas, créalos)
+./mvnw spring-boot:run    # levantar localmente (requiere Postgres en localhost:5432/financetracker)
+```
+
+**Siempre corre `./mvnw compile` después de cada cambio, antes de pasar al siguiente.**
+No se puede compilar en este entorno de forma remota sin acceso a Maven Central — verifícalo
+tú directamente en tu máquina.
+
+## Configuración de IA
+
+`application.yaml`, sección `ai:`. La librería `prompt-link` habla con OpenRouter
+(`https://openrouter.ai/api/v1`). La API key sale de la variable de entorno `API_KEY`.
+
+El campo `model` **debe** apuntar a un modelo con sufijo `:free` (catálogo vigente en
+`https://openrouter.ai/models?max_price=0`). Ahora mismo es `openai/gpt-oss-20b:free`.
+Ojo: si se borra esa clave, `AiProperties` cae en su default `openai/gpt-4o-mini`, que es
+**de pago** — el modelo gratuito hay que dejarlo explícito, nunca confiar en el default.
+
+Los prompts usan la sobrecarga `generate(systemPrompt, userPrompt)`: las instrucciones y el
+rol van en el system prompt, los datos del usuario en el de usuario. Mantén esa separación
+al añadir prompts nuevos — además de que el modelo obedece mejor, evita que el texto que
+escribe el usuario se mezcle con las instrucciones.
+
+## Invariantes que hay que mantener
+
+Esto era la lista de deuda técnica; ya está toda corregida. Se queda documentada porque son
+los sitios donde el código se rompió una vez y donde es fácil volver a romperlo.
+
+1. **Toda operación que crea o borra una transacción ajusta `Account.balance`.**
+   `TransactionServiceImpl.delete()` revierte el efecto antes de borrar (INCOME → restar,
+   EXPENSE → sumar). Si añades edición de transacciones, tendrá que revertir el importe
+   viejo y aplicar el nuevo.
+2. **Cuidado con `@Transactional(readOnly = true)` copiado del método de al lado.**
+   `delete()` lo tenía a pesar de escribir. Si el método modifica algo, va `@Transactional` a secas.
+3. **`POST /api/transactions` valida ownership de la cuenta** con
+   `@PreAuthorize("@securityEvaluator.isAccountOwner(#request.accountId, authentication) or hasRole('ADMIN')")`.
+   Sin eso, cualquier usuario autenticado puede escribir en una cuenta ajena conociendo su UUID.
+4. **`AccountService.increaseBalance/decreaseBalance` trabajan en `BigDecimal`.** No vuelvas a
+   meter `.doubleValue()` en el flujo de dinero.
+5. **`findTransactionsByOrderDate` ordena ascendente y `ReportServiceImpl.getCashFlow` depende
+   de ese orden** para acumular el balance corriente. Si necesitas las más recientes primero
+   (como `AIServiceImpl.generateAnalysis`), ordena en el servicio; no le pongas `DESC` a la query.
+6. **Nada de `System.out.println`.** Usa `@Slf4j` y `log.debug` con logging parametrizado (`{}`).
+
+## Plan de trabajo activo
+
+Sigue el orden de `finance-tracker-plan-de-mejoras.md` (raíz del repo, o pídemelo si no
+está). Los bugs P0 y la config de IA gratuita ya están hechos; lo siguiente es el feature de
+metas de ahorro y proyección (`SavingsGoal`, `/api/goals/*`) y después presupuestos por
+categoría. No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
+
+El módulo no tiene tests todavía. Si tocas el flujo de balances o la validación de ownership,
+son los dos sitios que más los piden.
+
+## Qué NO hacer
+
+- No introduzcas un ORM/librería nueva sin preguntar — el proyecto es deliberadamente simple.
+- No cambies el paquete base (`com.adrian.financetracker_monolith_api`) ni la estructura
+  `interf`/`impl`, aunque no sea la convención más común en Spring — es la que ya usa
+  todo el repo.
+- No hardcodees secretos (JWT secret, API keys) — siempre vía `application.yaml` +
+  variables de entorno, como ya está hecho.
+- No agregues un modelo de IA de pago por defecto sin dejarlo explícito y documentado.
