@@ -3,6 +3,7 @@ package com.adrian.financetracker_monolith_api.handler;
 import com.adrian.financetracker_monolith_api.dto.error.ErrorResponse;
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
+import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.transaction.TransactionNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
 import io.github.adrian0511.prompt_link.exceptions.AiClientException;
@@ -48,6 +49,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TransactionNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleTransactionNotFoundException(TransactionNotFoundException exception,
+                                                                            HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message(exception.getMessage())
+                .path(request.getRequestURI())
+                .status(HttpStatus.NOT_FOUND.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(SavingsGoalNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSavingsGoalNotFoundException(SavingsGoalNotFoundException exception,
                                                                             HttpServletRequest request) {
         ErrorResponse error = ErrorResponse.builder()
                 .message(exception.getMessage())
