@@ -29,6 +29,7 @@ public class TransactionController {
     private final TransactionService service;
 
     @PostMapping
+    @PreAuthorize("@securityEvaluator.isAccountOwner(#request.accountId,authentication) or hasRole('ADMIN')")
     public ResponseEntity<TransactionResponse> createTransaction(@RequestBody @Valid TransactionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createTransaction(request));
     }
