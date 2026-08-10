@@ -23,4 +23,5 @@ jwt:
 
 ai:
   api-key: ${API_KEY}
+  model: openai/gpt-oss-20b:free
 
