@@ -9,7 +9,6 @@ import com.adrian.financetracker_monolith_api.entity.User;
 import com.adrian.financetracker_monolith_api.repository.UserRepository;
 import com.adrian.financetracker_monolith_api.security.userdetails.CustomUserDetails;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +17,7 @@ import com.adrian.financetracker_monolith_api.dto.account.AccountResponse;
 import com.adrian.financetracker_monolith_api.entity.Account;
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
+import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
 import com.adrian.financetracker_monolith_api.mapper.AccountMapper;
 import com.adrian.financetracker_monolith_api.repository.AccountRepository;
 import com.adrian.financetracker_monolith_api.service.interf.AccountService;
@@ -36,8 +36,8 @@ public class AccountServiceImpl implements AccountService {
     @Transactional
     public AccountResponse createAccount(AccountRequest request, UUID userId) {
 
-     User user = userRepository.findById(userId)
-             .orElseThrow(()-> new UsernameNotFoundException("User not found with id: "+userId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
 
         Account account = Account.builder()
                 .user(user)
