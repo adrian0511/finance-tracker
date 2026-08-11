@@ -9,6 +9,7 @@ import com.adrian.financetracker_monolith_api.util.Type;
 import io.github.adrian0511.prompt_link.service.AiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,9 +17,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -38,17 +37,18 @@ public class AIServiceImpl implements AIService {
 
     private static final String SIN_CATEGORIA = "Sin categoria";
 
+    /** Movimientos que se le pasan al modelo en el analisis. Es el LIMIT de la query. */
+    private static final int ANALYSIS_SAMPLE_SIZE = 50;
+
     private final AiService aiService;
     private final TransactionRepository repository;
 
     @Override
     public AIResponse generateAnalysis(UUID userId) {
-        // La query devuelve orden ascendente y getCashFlow depende de eso, asi que el
-        // descendente se aplica aqui: sin el, limit(50) tomaria las 50 mas antiguas.
-        List<Transaction> txs = repository.findTransactionsByOrderDate(userId).stream()
-                .sorted(Comparator.comparing(Transaction::getDate).reversed())
-                .limit(50)
-                .toList();
+        // El orden y el corte los hace la base de datos: traerse el historico entero para
+        // quedarse con las ultimas ANALYSIS_SAMPLE_SIZE crecia con cada movimiento del usuario.
+        List<Transaction> txs = repository.findRecentTransactions(userId,
+                PageRequest.of(0, ANALYSIS_SAMPLE_SIZE));
 
         if (txs.isEmpty()) {
             return respond("Todavia no hay movimientos registrados, asi que no se puede analizar "
@@ -57,7 +57,7 @@ public class AIServiceImpl implements AIService {
 
         String data = txs.stream()
                 .map(t -> "%s | %s | %.2f | %s".formatted(
-                        t.getDate().toLocalDate(), t.getType(), t.getAmount(), category(t)))
+                        t.getDate().toLocalDate(), t.getType(), t.getAmount(), category(t.getCategory())))
                 .collect(Collectors.joining("\n"));
 
         BigDecimal incomes = sum(txs, Type.INCOME);
@@ -108,29 +108,27 @@ public class AIServiceImpl implements AIService {
         LocalDateTime start = month.atDay(1).atStartOfDay();
         LocalDateTime end = month.atEndOfMonth().atTime(LocalTime.MAX);
 
-        List<Transaction> txs = repository.findByUserAndDateBetween(userId, start, end);
+        // El informe solo necesita cifras agregadas, asi que no se trae ni un movimiento: cuenta,
+        // totales y desglose salen ya sumados de la base de datos.
+        long total = repository.countByUserAndDateBetween(userId, start, end);
 
-        BigDecimal incomes = sum(txs, Type.INCOME);
-        BigDecimal expenses = sum(txs, Type.EXPENSE);
-        BigDecimal balance = incomes.subtract(expenses);
-
-        log.debug("Monthly report for user {} ({} transactions): incomes={}, expenses={}",
-                userId, txs.size(), incomes, expenses);
-
-        if (txs.isEmpty()) {
+        if (total == 0) {
             return respond("No hay movimientos registrados en %s, asi que no hay nada que resumir."
                     .formatted(month));
         }
 
+        BigDecimal incomes = repository.totalIncomes(userId, start, end);
+        BigDecimal expenses = repository.totalExpenses(userId, start, end);
+        BigDecimal balance = incomes.subtract(expenses);
+
+        log.debug("Monthly report for user {} ({} transactions): incomes={}, expenses={}",
+                userId, total, incomes, expenses);
+
         // Sin el desglose por categoria el modelo solo ve dos numeros y no puede decir nada
         // especifico: es la diferencia entre "gastas mucho" y "el 45% se te va en Comida".
-        String byCategory = txs.stream()
-                .filter(t -> t.getType() == Type.EXPENSE)
-                .collect(Collectors.groupingBy(this::category,
-                        Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)))
-                .entrySet().stream()
-                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
-                .map(e -> "- %s: %.2f".formatted(e.getKey(), e.getValue()))
+        // La query ya lo devuelve de mayor a menor.
+        String byCategory = repository.findExpensesByCategory(userId, start, end).stream()
+                .map(c -> "- %s: %.2f".formatted(category(c.getCategory()), c.getTotal()))
                 .collect(Collectors.joining("\n"));
 
         String savingsRate = incomes.signum() > 0
@@ -165,7 +163,7 @@ public class AIServiceImpl implements AIService {
                 2. Problemas: donde se concentra el gasto y que hace dano al balance.
                 3. Recomendaciones: 3 acciones concretas para el mes que viene, con la categoria
                    y el importe aproximado que se puede recortar en cada una.
-                """.formatted(month, txs.size(), incomes, expenses, balance, savingsRate, byCategory);
+                """.formatted(month, total, incomes, expenses, balance, savingsRate, byCategory);
 
         return respond(aiService.generate(systemPrompt, userPrompt).getContent());
     }
@@ -209,6 +207,11 @@ public class AIServiceImpl implements AIService {
         return new AIResponse(content, LocalDateTime.now());
     }
 
+    /**
+     * Suma sobre la muestra ya cargada, no sobre todo el historico: son los totales DE ESAS
+     * transacciones, que es justo lo que se le dice al modelo. Sumarlo en la base de datos daria
+     * el total de siempre, que no es el mismo numero.
+     */
     private BigDecimal sum(List<Transaction> txs, Type type) {
         return txs.stream()
                 .filter(t -> t.getType() == type)
@@ -216,9 +219,9 @@ public class AIServiceImpl implements AIService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /** groupingBy revienta con clave null, y category es un String libre en la entidad. */
-    private String category(Transaction t) {
-        return Objects.requireNonNullElse(t.getCategory(), SIN_CATEGORIA);
+    /** category es un String libre en la entidad, asi que puede llegar a null. */
+    private String category(String category) {
+        return Objects.requireNonNullElse(category, SIN_CATEGORIA);
     }
 
 }

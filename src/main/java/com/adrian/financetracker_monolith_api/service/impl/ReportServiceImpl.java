@@ -4,15 +4,17 @@ import com.adrian.financetracker_monolith_api.dto.report.BalanceResponse;
 import com.adrian.financetracker_monolith_api.dto.report.CashFlowResponse;
 import com.adrian.financetracker_monolith_api.dto.report.CategoryReportResponse;
 import com.adrian.financetracker_monolith_api.dto.report.MonthlyReportResponse;
-import com.adrian.financetracker_monolith_api.entity.Transaction;
+import com.adrian.financetracker_monolith_api.exception.report.InvalidDateRangeException;
 import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.service.interf.ReportService;
-import com.adrian.financetracker_monolith_api.util.Type;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,20 +22,28 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
 
+    /** Rango por defecto cuando el cliente no manda from/to. */
+    private static final int DEFAULT_RANGE_MONTHS = 6;
+
     private final TransactionRepository repository;
+    private final Clock clock;
 
     @Override
-    public BalanceResponse getBalance(UUID userId) {
-        BigDecimal incomes = repository.totalIncomes(userId);
-        BigDecimal expenses = repository.totalExpenses(userId);
+    public BalanceResponse getBalance(UUID userId, LocalDate from, LocalDate to) {
+        DateRange range = resolveRange(from, to);
+
+        BigDecimal incomes = repository.totalIncomes(userId, range.start(), range.end());
+        BigDecimal expenses = repository.totalExpenses(userId, range.start(), range.end());
         BigDecimal balance = incomes.subtract(expenses);
 
         return new BalanceResponse(incomes, expenses, balance);
     }
 
     @Override
-    public List<CategoryReportResponse> getByCategory(UUID userId) {
-        return repository.findByCategory(userId);
+    public List<CategoryReportResponse> getByCategory(UUID userId, LocalDate from, LocalDate to) {
+        DateRange range = resolveRange(from, to);
+
+        return repository.findByCategory(userId, range.start(), range.end());
     }
 
     @Override
@@ -42,21 +52,31 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<CashFlowResponse> getCashFlow(UUID userId) {
-        List<Transaction> txs = repository.findTransactionsByOrderDate(userId);
-        BigDecimal balance = BigDecimal.ZERO;
-        List<CashFlowResponse> cashFlow = new ArrayList<>();
+    public List<CashFlowResponse> getCashFlow(UUID userId, LocalDate from, LocalDate to) {
+        DateRange range = resolveRange(from, to);
 
-        for (Transaction t : txs) {
-            if (t.getType() == Type.INCOME) {
-                balance = balance.add(t.getAmount());
-            } else {
-                balance = balance.subtract(t.getAmount());
-            }
+        // El acumulado lo calcula la query con una funcion de ventana. Arranca en cero dentro del
+        // rango: es el flujo del periodo, no el saldo acumulado desde el primer movimiento.
+        return repository.findCashFlow(userId, range.start(), range.end());
+    }
 
-            cashFlow.add(new CashFlowResponse(t.getDate(), balance));
+    /**
+     * Convierte el rango opcional en fechas concretas: ambos limites son inclusivos, asi que
+     * el dia final llega hasta LocalTime.MAX (si no, quedarian fuera los movimientos de ese dia
+     * con hora distinta de medianoche).
+     */
+    private DateRange resolveRange(LocalDate from, LocalDate to) {
+        LocalDate end = to != null ? to : LocalDate.now(clock);
+        LocalDate start = from != null ? from : end.minusMonths(DEFAULT_RANGE_MONTHS);
+
+        if (start.isAfter(end)) {
+            throw new InvalidDateRangeException(
+                    "La fecha inicial (%s) no puede ser posterior a la final (%s)".formatted(start, end));
         }
 
-        return cashFlow;
+        return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
+    }
+
+    private record DateRange(LocalDateTime start, LocalDateTime end) {
     }
 }

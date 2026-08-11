@@ -17,7 +17,9 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,9 +30,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.adrian.financetracker_monolith_api.dto.goal.MonthlyNet;
 import com.adrian.financetracker_monolith_api.dto.goal.ProjectionPoint;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsProjectionResponse;
-import com.adrian.financetracker_monolith_api.entity.Account;
 import com.adrian.financetracker_monolith_api.entity.SavingsGoal;
 import com.adrian.financetracker_monolith_api.entity.Transaction;
 import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
@@ -101,7 +103,7 @@ class SavingsGoalServiceImplProjectionTest {
 
         ArgumentCaptor<LocalDateTime> start = ArgumentCaptor.forClass(LocalDateTime.class);
         ArgumentCaptor<LocalDateTime> end = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(transactionRepository).findByUserAndDateBetween(eq(USER_ID), start.capture(), end.capture());
+        verify(transactionRepository).findMonthlyNets(eq(USER_ID), start.capture(), end.capture());
 
         // Estando en junio de 2026, la ventana va del 1 de diciembre de 2025 al final de mayo.
         assertThat(start.getValue()).isEqualTo(LocalDate.of(2025, 12, 1).atStartOfDay());
@@ -344,17 +346,30 @@ class SavingsGoalServiceImplProjectionTest {
         when(repository.findByIdAndUserId(GOAL_ID, USER_ID)).thenReturn(Optional.of(goal));
     }
 
+    /** La suma la hace ahora la query, asi que el mock devuelve el total, no las cuentas. */
     private void givenBalances(BigDecimal... balances) {
-        List<Account> accounts = Arrays.stream(balances)
-                .map(b -> Account.builder().id(UUID.randomUUID()).balance(b).build())
-                .toList();
+        BigDecimal total = Arrays.stream(balances).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        when(accountRepository.findByUserId(USER_ID)).thenReturn(accounts);
+        when(accountRepository.totalBalance(USER_ID)).thenReturn(total);
     }
 
+    /**
+     * Los movimientos se agregan por mes aqui, igual que hace findMonthlyNets en la base de
+     * datos. Los tests siguen escribiendose con ingresos y gastos sueltos porque es como se
+     * razona sobre la proyeccion; lo que cambia es donde se suman, no que se espera.
+     */
     private void givenTransactions(Transaction... transactions) {
-        when(transactionRepository.findByUserAndDateBetween(any(), any(), any()))
-                .thenReturn(List.of(transactions));
+        Map<YearMonth, BigDecimal> netByMonth = new TreeMap<>();
+        for (Transaction t : transactions) {
+            BigDecimal signed = t.getType() == Type.INCOME ? t.getAmount() : t.getAmount().negate();
+            netByMonth.merge(YearMonth.from(t.getDate()), signed, BigDecimal::add);
+        }
+
+        List<MonthlyNet> nets = netByMonth.entrySet().stream()
+                .map(e -> new MonthlyNet(e.getKey().getYear(), e.getKey().getMonthValue(), e.getValue()))
+                .toList();
+
+        when(transactionRepository.findMonthlyNets(any(), any(), any())).thenReturn(nets);
     }
 
     /** Un ingreso en el mes cerrado numero {@code monthsAgo} (1 = mayo de 2026). */

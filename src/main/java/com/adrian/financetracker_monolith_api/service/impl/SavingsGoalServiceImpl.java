@@ -9,23 +9,20 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adrian.financetracker_monolith_api.dto.goal.MonthlyNet;
 import com.adrian.financetracker_monolith_api.dto.goal.ProjectionPoint;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalRequest;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsGoalResponse;
 import com.adrian.financetracker_monolith_api.dto.goal.SavingsProjectionResponse;
-import com.adrian.financetracker_monolith_api.entity.Account;
 import com.adrian.financetracker_monolith_api.entity.SavingsGoal;
-import com.adrian.financetracker_monolith_api.entity.Transaction;
 import com.adrian.financetracker_monolith_api.entity.User;
 import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
@@ -35,7 +32,6 @@ import com.adrian.financetracker_monolith_api.repository.SavingsGoalRepository;
 import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.repository.UserRepository;
 import com.adrian.financetracker_monolith_api.service.interf.SavingsGoalService;
-import com.adrian.financetracker_monolith_api.util.Type;
 
 import lombok.RequiredArgsConstructor;
 
@@ -155,10 +151,7 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
 
     /** El ahorro acumulado es la suma de los balances de todas las cuentas del usuario. */
     private BigDecimal currentBalance(UUID userId) {
-        return accountRepository.findByUserId(userId).stream()
-                .map(Account::getBalance)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return accountRepository.totalBalance(userId);
     }
 
     /**
@@ -175,13 +168,11 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
         LocalDateTime start = firstMonth.atDay(1).atStartOfDay();
         LocalDateTime end = lastMonth.atEndOfMonth().atTime(LocalTime.MAX);
 
-        List<Transaction> txs = transactionRepository.findByUserAndDateBetween(userId, start, end);
-
-        Map<YearMonth, BigDecimal> netByMonth = new HashMap<>();
-        for (Transaction t : txs) {
-            BigDecimal signed = t.getType() == Type.INCOME ? t.getAmount() : t.getAmount().negate();
-            netByMonth.merge(YearMonth.from(t.getDate()), signed, BigDecimal::add);
-        }
+        // La suma por mes la hace la base de datos: aqui solo llegan como mucho HISTORY_MONTHS
+        // filas ya agregadas, en vez del historico de movimientos de medio ano.
+        Map<YearMonth, BigDecimal> netByMonth = transactionRepository
+                .findMonthlyNets(userId, start, end).stream()
+                .collect(Collectors.toMap(MonthlyNet::month, MonthlyNet::getNet));
 
         List<BigDecimal> nets = new ArrayList<>(HISTORY_MONTHS);
         for (int i = HISTORY_MONTHS; i >= 1; i--) {

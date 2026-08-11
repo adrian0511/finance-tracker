@@ -5,6 +5,7 @@ import com.adrian.financetracker_monolith_api.exception.account.AccountHasTransa
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
 import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
+import com.adrian.financetracker_monolith_api.exception.report.InvalidDateRangeException;
 import com.adrian.financetracker_monolith_api.exception.transaction.TransactionNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
 import io.github.adrian0511.prompt_link.exceptions.AiClientException;
@@ -100,6 +101,20 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDateRangeException(
+            InvalidDateRangeException exception,
+            HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message(exception.getMessage())
+                .path(request.getRequestURI())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

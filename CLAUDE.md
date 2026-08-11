@@ -103,10 +103,29 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    Sin eso, cualquier usuario autenticado puede escribir en una cuenta ajena conociendo su UUID.
 4. **`AccountService.increaseBalance/decreaseBalance` trabajan en `BigDecimal`.** No vuelvas a
    meter `.doubleValue()` en el flujo de dinero.
-5. **`findTransactionsByOrderDate` ordena ascendente y `ReportServiceImpl.getCashFlow` depende
-   de ese orden** para acumular el balance corriente. Si necesitas las más recientes primero
-   (como `AIServiceImpl.generateAnalysis`), ordena en el servicio; no le pongas `DESC` a la query.
+5. **Lo que se puede agregar en SQL se agrega en SQL, no en el servicio.** Sumar, contar,
+   agrupar, ordenar y cortar son cosa de la query: traerse las filas para reducirlas en Java
+   escala con el histórico del usuario, y la query no. En concreto:
+   - Totales y desgloses: `totalIncomes/totalExpenses`, `countByUserAndDateBetween`,
+     `findByCategory`, `findExpensesByCategory` (ordenada por `SUM(t.amount) DESC`),
+     `findMonthlyNets`, `AccountRepository.totalBalance`.
+   - Límites: `findRecentTransactions(userId, PageRequest.of(0, n))`, nunca
+     `.sorted().limit(n)` sobre la lista entera.
+   - `findCashFlow` calcula el balance acumulado con una función de ventana
+     (`SUM(...) OVER (ORDER BY t.date, t.id)`). El desempate por `id` es obligatorio: sin él,
+     el marco `RANGE` por defecto da a los movimientos del mismo instante el acumulado del
+     grupo entero en vez del suyo.
+   - La excepción es `AIServiceImpl.generateAnalysis`: suma sobre la muestra de 50 que ya tiene
+     cargada, y ese total no es el mismo número que el total histórico.
+   Estas queries no se pueden verificar con mocks (solo comprobarías que te devuelven lo que tú
+   inventaste): van en `TransactionRepositoryAggregateTest`, que es `@DataJpaTest` contra el
+   Postgres local con rollback. **Ese test necesita Postgres levantado.**
 6. **Nada de `System.out.println`.** Usa `@Slf4j` y `log.debug` con logging parametrizado (`{}`).
+7. **Los informes con rango (`/balance`, `/category`, `/cashFlow`) resuelven `from`/`to` en
+   `ReportServiceImpl.resolveRange`**, no en el controller: si vienen a null se aplican los
+   últimos 6 meses hasta hoy (`LocalDate.now(clock)`, con el `Clock` inyectado para poder fijarlo
+   en tests). Ambos límites son inclusivos, y el final llega hasta `LocalTime.MAX` para no dejar
+   fuera los movimientos de ese mismo día.
 
 ## Plan de trabajo activo
 
@@ -115,8 +134,9 @@ está). Los bugs P0 y la config de IA gratuita ya están hechos; lo siguiente es
 metas de ahorro y proyección (`SavingsGoal`, `/api/goals/*`) y después presupuestos por
 categoría. No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
 
-El módulo no tiene tests todavía. Si tocas el flujo de balances o la validación de ownership,
-son los dos sitios que más los piden.
+Tests actuales: `SavingsGoalServiceImplProjectionTest` y `ReportServiceImplRangeTest` (unitarios
+con Mockito y `Clock` fijo) y `TransactionRepositoryAggregateTest` (`@DataJpaTest` contra el
+Postgres local). La validación de ownership sigue sin cubrir: es lo que más lo pide.
 
 ## Qué NO hacer
 
