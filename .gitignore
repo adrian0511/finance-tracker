@@ -8,7 +8,7 @@ target/
 # Lo genera Vite (pnpm build), y en el build de Maven lo regenera el frontend-maven-plugin
 # en la fase generate-resources, antes de que se copien los recursos a target/classes.
 # Es artefacto de build: no se versiona.
-src/main/resources/static/
+src/main/resources/static/*
 
 ### STS ###
 .apt_generated

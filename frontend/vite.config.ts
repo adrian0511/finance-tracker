@@ -5,6 +5,10 @@ import path from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // La app se sirve desde la raiz del dominio, no desde un subdirectorio: los assets se
+  // referencian como /assets/... Es el valor por defecto de Vite, pero se deja explicito
+  // porque de el depende que el fallback de SPA no se coma los assets.
+  base: '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

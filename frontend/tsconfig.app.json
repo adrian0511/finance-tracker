@@ -8,6 +8,12 @@
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
+    /* Alias '@' -> src. Tiene que estar aqui ademas de en vite.config.ts: Vite lo resuelve al
+       empaquetar, pero 'tsc -b' (que corre antes en el script de build) no lee vite.config.ts. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
