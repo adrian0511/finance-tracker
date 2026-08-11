@@ -17,6 +17,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 
@@ -176,6 +177,24 @@ public class GlobalExceptionHandler {
         HttpStatus status = exception.getStatusCode() == -1 ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.valueOf(exception.getStatusCode());
 
         return ResponseEntity.status(status).body(error);
+    }
+
+    /**
+     * Sin esto lo caza el handler generico de abajo y un recurso que no existe responde 500.
+     * Es la excepcion que lanza Spring cuando ninguna ruta ni ningun estatico casan con la URL,
+     * asi que cubre tanto un asset que falta como una ruta desconocida bajo /api.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException exception,
+                                                                        HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message("No handler found for " + request.getRequestURI())
+                .path(request.getRequestURI())
+                .status(HttpStatus.NOT_FOUND.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
     @ExceptionHandler(Exception.class)

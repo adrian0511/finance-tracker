@@ -121,7 +121,22 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    inventaste): van en `TransactionRepositoryAggregateTest`, que es `@DataJpaTest` contra el
    Postgres local con rollback. **Ese test necesita Postgres levantado.**
 6. **Nada de `System.out.println`.** Usa `@Slf4j` y `log.debug` con logging parametrizado (`{}`).
-7. **Los informes con rango (`/balance`, `/category`, `/cashFlow`) resuelven `from`/`to` en
+7. **`SpaForwardingController` reenvía las rutas de React Router a `index.html`.** Es
+   `@Controller`, no `@RestController` (el String es un nombre de vista, no un cuerpo), y sus
+   patrones `{"/{path:[^\\.]*}", "/**/{path:[^\\.]*}"}` excluyen por diseño lo que lleva punto
+   en el último segmento: los controllers tienen prioridad sobre los recursos estáticos, así que
+   sin esa restricción el comodín se comería los assets de Vite. Dentro hay un guardia explícito
+   para `/api`: un comodín así también recoge las rutas de API que **no** existen, y sin él un
+   `/api/reprts` mal escrito devolvería `index.html` con 200 a un cliente que espera JSON.
+8. **La cadena de seguridad es default-deny solo bajo `/api`.** `/api/**` pide token (salvo
+   `/api/auth/**`) y `anyRequest().permitAll()` cubre el shell del SPA. Tiene que ser así: el
+   navegador pide `index.html` y los assets sin cabecera `Authorization`, y sin el HTML no hay
+   nada que pueda mandar el token después. Si añades un endpoint fuera de `/api`, será público
+   por defecto — ponlo bajo `/api`.
+9. **`NoResourceFoundException` tiene su propio `@ExceptionHandler` y devuelve 404.** Sin él lo
+   caza el `@ExceptionHandler(Exception.class)` genérico y cualquier recurso que no existe
+   responde **500**: era el caso de `/`, de `/favicon.ico` y de cualquier asset que faltase.
+10. **Los informes con rango (`/balance`, `/category`, `/cashFlow`) resuelven `from`/`to` en
    `ReportServiceImpl.resolveRange`**, no en el controller: si vienen a null se aplican los
    últimos 6 meses hasta hoy (`LocalDate.now(clock)`, con el `Clock` inyectado para poder fijarlo
    en tests). Ambos límites son inclusivos, y el final llega hasta `LocalTime.MAX` para no dejar
@@ -135,8 +150,11 @@ metas de ahorro y proyección (`SavingsGoal`, `/api/goals/*`) y después presupu
 categoría. No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
 
 Tests actuales: `SavingsGoalServiceImplProjectionTest` y `ReportServiceImplRangeTest` (unitarios
-con Mockito y `Clock` fijo) y `TransactionRepositoryAggregateTest` (`@DataJpaTest` contra el
-Postgres local). La validación de ownership sigue sin cubrir: es lo que más lo pide.
+con Mockito y `Clock` fijo), `TransactionRepositoryAggregateTest` (`@DataJpaTest` contra el
+Postgres local) y `SpaForwardingControllerTest` (`@SpringBootTest` + MockMvc). La validación de
+ownership sigue sin cubrir: es lo que más lo pide. Ojo: **`spring-security-test` no está en el
+pom**, así que no hay `@WithMockUser`; para autenticar en un test hay que sacar un token real
+por `/api/auth/register` + `/api/auth/login`, como hace `SpaForwardingControllerTest`.
 
 ## Qué NO hacer
 

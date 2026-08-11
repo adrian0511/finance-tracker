@@ -34,7 +34,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/auth/**")
                         .permitAll()
-                        .anyRequest().authenticated())
+                        // La API sigue siendo default-deny: lo que cuelga de /api pide token.
+                        .requestMatchers("/api/**")
+                        .authenticated()
+                        // Todo lo demas es el shell del SPA (index.html, los assets de Vite y las
+                        // rutas de React Router, que acaban en index.html via SpaForwardingController).
+                        // Tiene que servirse sin token: el navegador pide estas URLs sin cabecera
+                        // Authorization, y sin el HTML no hay nada que pueda mandar el token luego.
+                        .anyRequest().permitAll())
                 .addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
