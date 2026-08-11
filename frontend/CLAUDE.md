@@ -74,6 +74,33 @@ de entorno de URL de API en producción.
   **login** no hay reglas de longitud a propósito: quien ya tiene cuenta tiene la contraseña
   que tenga, y una política nueva le dejaría fuera.
 
+## Endpoints que no tienen la forma que esperas
+
+Comprueba el controller antes de dar por hecha una ruta REST; varias no siguen el patrón obvio:
+
+- **`GET /api/accounts` devuelve las del usuario del token** y no lleva `@PreAuthorize` — no le
+  hace falta, el id sale del principal y no de la petición, así que no hay nada cuya propiedad
+  validar. `GET /api/accounts/users/{id}` sigue existiendo, pero es para ADMIN: es la única
+  forma de listar las cuentas de otro. Desde el cliente usa siempre la primera.
+- **`POST /api/accounts` solo acepta `{ name }`.** Toda cuenta nace con saldo 0; el saldo lo
+  mueven las transacciones. No mandes un balance inicial, se ignora.
+- **`DELETE /api/accounts/{id}` da 409 si la cuenta tiene movimientos**, con un mensaje en inglés
+  y con el UUID dentro. Ese texto no se le enseña al usuario: se traduce en el hook.
+- **No hay `GET /api/transactions`**, a diferencia de las cuentas: el listado es
+  `GET /api/transactions/users/{id}`, con el id sacado de la sesión. Viene ordenado de más
+  reciente a más antiguo desde la query — no lo reordenes en el cliente.
+- **`POST /api/transactions` no acepta fecha.** La pone el servidor con `LocalDateTime.now()`,
+  así que no se pueden dar de alta movimientos con fecha pasada. Si algún día hace falta, es un
+  campo nuevo en `TransactionRequest`, no algo que se arregle desde aquí.
+- **Un gasto mayor que el saldo da 409** (`InsufficientBalanceException`), con el mensaje en
+  inglés. Se traduce en el hook.
+- **Crear o borrar un movimiento cambia el saldo de la cuenta**, así que las mutaciones
+  invalidan `['transactions']` **y** `['accounts']`. Si se olvida la segunda, las tarjetas de
+  cuentas se quedan con el saldo viejo.
+- **No hay divisa en ninguna parte del backend.** Los importes son `BigDecimal` pelados. El euro
+  es una decisión de presentación que vive en `utils/format.ts`, único sitio que hay que tocar si
+  algún día la cuenta lleva su moneda.
+
 ## Estructura
 
 ```
@@ -83,8 +110,9 @@ frontend/
 │   ├── components/   # componentes reutilizables (charts, forms, layout)
 │   ├── pages/         # una carpeta/archivo por ruta
 │   ├── hooks/          # hooks de TanStack Query
-│   ├── store/           # Zustand (solo authStore)
-│   └── types/             # interfaces TS que espejan los DTOs del backend
+│   ├── store/           # Zustand (authStore y toastStore, nada más)
+│   ├── types/             # interfaces TS que espejan los DTOs del backend
+│   └── utils/              # formateo de presentación (dinero, fechas)
 ├── vite.config.ts
 └── package.json
 ```

@@ -14,3 +14,15 @@ export interface TransactionResponse {
   type: TransactionType
   date: IsoDateTime
 }
+
+/**
+ * Espeja {@code dto/transaction/TransactionRequest}. **No lleva fecha**: la pone el servidor con
+ * {@code LocalDateTime.now()} al crear, asi que no se pueden dar de alta movimientos con fecha
+ * pasada por aqui.
+ */
+export interface TransactionRequest {
+  amount: Money
+  type: TransactionType
+  category: string
+  accountId: Uuid
+}
