@@ -66,7 +66,19 @@ src/main/java/com/adrian/financetracker_monolith_api/
 ./mvnw compile          # compilar
 ./mvnw test              # tests (si existen para el módulo que tocas, créalos)
 ./mvnw spring-boot:run    # levantar localmente (requiere Postgres en localhost:5432/financetracker)
+./mvnw package            # jar con el frontend dentro
+
+# Solo backend: se salta el pnpm install + vite build de cada build
+./mvnw test -Dfrontend.skip=true
 ```
+
+**El build de Maven compila el frontend.** `frontend-maven-plugin` corre en `generate-resources`
+(antes de que `process-resources` copie los recursos a `target/classes`, si no el jar saldría sin
+SPA) y ejecuta `pnpm install --frozen-lockfile` + `pnpm build`. Se baja su propio Node y pnpm a
+`frontend/node/`, con las versiones fijadas en las propiedades `node.version` / `pnpm.version`
+del pom — no usa el Node del PATH, así que el resultado es el mismo aquí que en CI.
+`src/main/resources/static/` es **artefacto de build y está en `.gitignore`**: no lo edites a
+mano ni lo commitees, lo regenera el build.
 
 **Siempre corre `./mvnw compile` después de cada cambio, antes de pasar al siguiente.**
 No se puede compilar en este entorno de forma remota sin acceso a Maven Central — verifícalo

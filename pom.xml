@@ -30,6 +30,17 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+
+        <!-- Node y pnpm que usa el build de Maven. Son los que instala el frontend-maven-plugin
+             dentro de frontend/node, independientes de lo que haya en el PATH: asi el build da
+             el mismo resultado en tu maquina y en CI. Si subes la version aqui, sube tambien la
+             de tu maquina para no depurar contra dos runtimes distintos. -->
+        <node.version>v24.19.0</node.version>
+        <pnpm.version>11.21.0</pnpm.version>
+
+        <!-- Con -Dfrontend.skip=true el build se salta el frontend entero. Util cuando solo
+             tocas backend: te ahorra el pnpm install + vite build en cada mvn test. -->
+        <frontend.skip>false</frontend.skip>
     </properties>
     <dependencies>
         <dependency>
@@ -128,6 +139,59 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <!--
+                Compila el frontend como parte del build de Maven, para que el jar salga con el
+                SPA dentro sin tener que acordarse de correr pnpm build a mano.
+
+                La fase es generate-resources a proposito: Vite escribe en
+                src/main/resources/static (build.outDir en vite.config.ts) y process-resources
+                copia ese directorio a target/classes. Si esto corriera mas tarde, el copiado ya
+                habria pasado y el jar saldria sin frontend.
+            -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.4</version>
+                <configuration>
+                    <workingDirectory>frontend</workingDirectory>
+                    <skip>${frontend.skip}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-pnpm</id>
+                        <goals>
+                            <goal>install-node-and-pnpm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <nodeVersion>${node.version}</nodeVersion>
+                            <pnpmVersion>${pnpm.version}</pnpmVersion>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-install</id>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <!-- frozen-lockfile: el build falla si package.json y pnpm-lock.yaml
+                                 no cuadran, en vez de resolver versiones nuevas por su cuenta. -->
+                            <arguments>install --frozen-lockfile</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pnpm-build</id>
+                        <goals>
+                            <goal>pnpm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
+                        <configuration>
+                            <arguments>build</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

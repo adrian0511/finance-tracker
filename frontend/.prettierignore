@@ -1,0 +1,7 @@
+dist
+node_modules
+pnpm-lock.yaml
+# Guia escrita a mano: que Prettier no le reordene el markdown.
+CLAUDE.md
+# Salida del build: la genera Vite, no se formatea a mano.
+../src/main/resources/static
