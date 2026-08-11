@@ -1,2 +1,23 @@
-/mvnw text eol=lf
+# Finales de linea normalizados: LF en el repositorio y LF tambien al hacer checkout,
+# independientemente del core.autocrlf de cada maquina. Sin esto, en Windows el checkout
+# convierte a CRLF y el siguiente diff sale con el fichero entero cambiado.
+* text=auto eol=lf
+
+# Excepcion: los scripts de Windows tienen que quedarse en CRLF. cmd.exe se atraganta
+# con los .bat/.cmd en LF, y aqui eso significa quedarse sin mvnw.cmd.
 *.cmd text eol=crlf
+*.bat text eol=crlf
+
+# El wrapper de Maven para Unix va en LF si o si, aunque se edite desde Windows.
+# Anclado a la raiz, como lo dejo el Initializr.
+/mvnw text eol=lf
+
+# Binarios: sin conversion de ningun tipo.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.jar binary
