@@ -19,9 +19,11 @@ import java.util.UUID;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
-    List<Transaction> findByAccountUserId(UUID userId);
+    // Ordenadas en la query, no en el servicio ni en el cliente: es la lista que se pinta tal
+    // cual, y quien sabe ordenar barato es la base de datos.
+    List<Transaction> findByAccountUserIdOrderByDateDesc(UUID userId);
 
-    List<Transaction> findByAccountId(UUID accountId);
+    List<Transaction> findByAccountIdOrderByDateDesc(UUID accountId);
 
     boolean existsByAccountId(UUID accountId);
 

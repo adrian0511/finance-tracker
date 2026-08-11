@@ -176,6 +176,15 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    si no, un texto genérico de conflicto — el handler cubre cualquier violación de integridad
    (una FK al borrar, por ejemplo) y ahí hablar de nombres de usuario sería mentir.
 
+14. **`DELETE /api/transactions/{id}` es del dueño, no solo de ADMIN.** Estaba con
+   `hasRole('ADMIN')`, lo que dejaba al usuario sin forma de deshacer un movimiento mal metido
+   pese a que `TransactionServiceImpl.delete()` existe justo para eso (invariante 1). Ahora usa
+   `@securityEvaluator.isTransactionOwner`, la misma regla que el `GET /{id}` de al lado.
+15. **`GET /api/accounts` devuelve las cuentas del usuario autenticado y no lleva
+   `@PreAuthorize`.** No es un olvido: el id sale del principal, no de la petición, así que no
+   hay ningún id ajeno cuya propiedad validar. `AccountControllerTest` comprueba que dos usuarios
+   distintos no se ven las cuentas. `GET /api/accounts/users/{id}` se queda para ADMIN.
+
 ## Plan de trabajo activo
 
 Sigue el orden de `finance-tracker-plan-de-mejoras.md` (raíz del repo, o pídemelo si no

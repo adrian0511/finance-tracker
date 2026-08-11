@@ -52,8 +52,12 @@ public class TransactionController {
         return ResponseEntity.ok(service.getByAccount(accountId));
     }
 
+    /**
+     * El dueno puede borrar lo suyo. Antes era solo ADMIN, lo que dejaba al usuario sin forma de
+     * deshacer un movimiento mal metido: es la misma regla que ya usa el GET de al lado.
+     */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("@securityEvaluator.isTransactionOwner(#id,authentication) or hasRole('ADMIN')")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
         service.delete(id);
 

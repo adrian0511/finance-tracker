@@ -67,7 +67,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public List<TransactionResponse> getByUser(UUID userId) {
-        return repository.findByAccountUserId(userId).stream()
+        return repository.findByAccountUserIdOrderByDateDesc(userId).stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -75,7 +75,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     @Transactional(readOnly = true)
     public List<TransactionResponse> getByAccount(UUID accountId) {
-        return repository.findByAccountId(accountId).stream()
+        return repository.findByAccountIdOrderByDateDesc(accountId).stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }

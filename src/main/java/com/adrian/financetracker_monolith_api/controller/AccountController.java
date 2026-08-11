@@ -36,12 +36,22 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createAccount(request,user.getId()));
     }
 
+    /**
+     * Las cuentas del usuario autenticado. No lleva @PreAuthorize y no le hace falta: el id sale
+     * del principal, no de la peticion, asi que no hay nada de lo que validar la propiedad.
+     */
+    @GetMapping
+    public ResponseEntity<List<AccountResponse>> getMyAccounts(@AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(service.getByUser(user.getId()));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("@securityEvaluator.isAccountOwner(#id,authentication) or hasRole('ADMIN')")
     public ResponseEntity<AccountResponse> getAccountById(@PathVariable UUID id) {
         return ResponseEntity.ok(service.getById(id));
     }
 
+    /** Se queda para el caso de ADMIN: es la unica forma de listar las cuentas de otro usuario. */
     @GetMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.id")
     public ResponseEntity<List<AccountResponse>> getAccountByUser(@PathVariable("id") UUID userId) {
