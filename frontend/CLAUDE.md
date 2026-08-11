@@ -43,6 +43,36 @@ de entorno de URL de API en producción.
   `/api/auth/**`) y deja pasar todo lo demás. Si una pantalla necesita datos, el 401/403
   llega en la llamada a `/api`, nunca al cargar la página — el guard de rutas es cosa del
   cliente, el backend siempre te va a servir el HTML.
+- **401 ≠ 403**, y el interceptor de `client.ts` depende de esa diferencia: **401** es "no hay
+  sesión" (sin token o caducado) → lanza el toast y limpia el store; **403** es `@PreAuthorize`
+  diciendo que el recurso es de otro usuario, con la sesión perfectamente válida → se muestra
+  el error, **nunca se desloguea**. El 401 lo devuelve el `authenticationEntryPoint` del
+  backend; el default de Spring Security habría sido 403 para ambos casos.
+- **El interceptor no navega, solo limpia la sesión.** La redirección la hace `ProtectedRoute`,
+  que está suscrito al store: token a null → `<Navigate to="/login">`. Es a propósito y no se
+  puede volver a un `window.location`: recargar la página se llevaría por delante el toast que
+  se acaba de lanzar, que es justo lo que le explica al usuario por qué está otra vez en el
+  login. **El JWT dura 30 minutos y no hay refresh token**, así que este camino se recorre en
+  cada sesión larga; no es un caso raro.
+
+## Auth: dos rarezas del backend que condicionan el cliente
+
+- **`POST /api/auth/login` devuelve solo `{ token }`**, sin objeto usuario, y no hay ningún
+  `/api/users/me`. Por eso `AuthUser` (id, username, role) sale de decodificar los claims del
+  propio JWT (`sub`, `userId`, `role`, `exp`) en `store/authStore.ts`. Eso es para pintar UI y
+  decidir rutas, **nunca** una decisión de seguridad: el payload de un JWT se lee sin verificar
+  la firma, y quien autoriza es el backend.
+- **`POST /api/auth/register` devuelve un `UserResponse` con 201, no un token.** Para dejar la
+  sesión iniciada hay que llamar después a `/login` con las mismas credenciales; eso es lo que
+  hace `useRegister()` en su `mutationFn`. Ojo también: el controller recibe un `UserRequest`,
+  no el `RegisterRequest` que existe sin usar en `dto/auth`.
+- **`authStore.login(token)` recibe el token, no las credenciales.** El HTTP es del hook de
+  TanStack Query; el store solo guarda sesión. Así no depende del cliente de la API ni duplica
+  estados de carga que Query ya maneja.
+- La validación de zod puede ser **más estricta** que la del backend (email obligatorio pese a
+  que `@Email` acepta null, mínimo de 8 en la contraseña de registro), nunca más laxa. En el
+  **login** no hay reglas de longitud a propósito: quien ya tiene cuenta tiene la contraseña
+  que tenga, y una política nueva le dejaría fuera.
 
 ## Estructura
 
@@ -58,6 +88,20 @@ frontend/
 ├── vite.config.ts
 └── package.json
 ```
+
+## Rutas
+
+Públicas `/login` y `/register`; privadas `/dashboard`, `/accounts`, `/transactions` y `/goals`,
+todas bajo `<ProtectedRoute>` (guard) y dentro de `<AppLayout>` (cabecera común). `/` redirige a
+`/dashboard` y `*` cae en `NotFoundPage` — el 404 lo decide el cliente, porque el backend
+responde `index.html` a cualquier ruta sin extensión que no cuelgue de `/api`.
+
+`ProtectedRoute` guarda en el state del historial la ruta de la que rebotó al usuario, y
+`LoginPage` lo devuelve ahí al entrar. Ese destino pasa por `safeRedirect()`, que exige una ruta
+interna: sin ese filtro un `//evil.com` convertiría el login en un redirector abierto.
+
+El guard **solo protege lo que se ve, no los datos**. La única barrera real es el 401 del
+backend; nunca escondas algo en el cliente asumiendo que eso lo protege.
 
 ## Convenciones
 
@@ -129,7 +173,11 @@ PATH). Dos consecuencias:
 - No uses `npm` ni `yarn` — siempre `pnpm`. Si ves un `package-lock.json` o `yarn.lock`
   en `frontend/`, es un error, bórralo.
 - No hagas fetch directo en componentes — siempre vía un hook de TanStack Query.
-- No guardes estado de servidor en Zustand — solo auth va ahí.
+- No guardes estado de servidor en Zustand — solo auth y avisos efímeros (`toastStore`) van
+  ahí. El toast está en Zustand y no en un contexto porque quien más lo necesita es el
+  interceptor de Axios, que vive fuera del árbol de React y no puede usar hooks. **No hay
+  librería de toasts**: son ~40 líneas propias (`store/toastStore.ts` +
+  `components/feedback/Toaster.tsx`) para no meter una dependencia sin preguntar.
 - No uses una URL absoluta ni una variable de entorno de host para la API — es `/api`
   relativo, funciona igual en dev (proxy) y prod (mismo origen).
 - No asumas que las rutas profundas de React Router funcionan sin verificar que el
