@@ -4,12 +4,14 @@ import com.adrian.financetracker_monolith_api.dto.error.ErrorResponse;
 import com.adrian.financetracker_monolith_api.exception.account.AccountHasTransactionsException;
 import com.adrian.financetracker_monolith_api.exception.account.AccountNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.account.InsufficientBalanceException;
+import com.adrian.financetracker_monolith_api.exception.auth.InvalidCredentialsException;
 import com.adrian.financetracker_monolith_api.exception.goal.SavingsGoalNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.report.InvalidDateRangeException;
 import com.adrian.financetracker_monolith_api.exception.transaction.TransactionNotFoundException;
 import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundException;
 import io.github.adrian0511.prompt_link.exceptions.AiClientException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,9 +22,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final String DUPLICATE_USERNAME = "Ese nombre de usuario ya existe";
+    private static final String DATA_CONFLICT = "Los datos enviados entran en conflicto con los que ya hay guardados";
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException exception,
@@ -102,6 +108,45 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Sin esto lo cazaba el handler generico y registrarse con un username ya cogido respondia
+     * 500. El mensaje se decide mirando la causa: la unica restriccion que puede tocar un
+     * usuario hoy es la de username, pero este handler cubre cualquier violacion de integridad
+     * (una FK, por ejemplo), y ahi hablar de nombres de usuario seria mentir.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+            DataIntegrityViolationException exception,
+            HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message(isDuplicateUsername(exception) ? DUPLICATE_USERNAME : DATA_CONFLICT)
+                .path(request.getRequestURI())
+                .status(HttpStatus.CONFLICT.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    private boolean isDuplicateUsername(DataIntegrityViolationException exception) {
+        String cause = exception.getMostSpecificCause().getMessage();
+        return cause != null && cause.toLowerCase(Locale.ROOT).contains("username");
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentialsException(
+            InvalidCredentialsException exception,
+            HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.builder()
+                .message(exception.getMessage())
+                .path(request.getRequestURI())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     @ExceptionHandler(InvalidDateRangeException.class)

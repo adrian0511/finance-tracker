@@ -153,6 +153,28 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    últimos 6 meses hasta hoy (`LocalDate.now(clock)`, con el `Clock` inyectado para poder fijarlo
    en tests). Ambos límites son inclusivos, y el final llega hasta `LocalTime.MAX` para no dejar
    fuera los movimientos de ese mismo día.
+11. **401 y 403 significan cosas distintas y no se pueden mezclar.** `SecurityConfig` registra
+   un `authenticationEntryPoint` explícito (`HttpStatusEntryPoint(UNAUTHORIZED)`); sin él, el
+   default de Spring Security es `Http403ForbiddenEntryPoint` y el que no manda token recibe el
+   mismo 403 que el que intenta tocar un recurso ajeno. El cliente los trata distinto: **401** =
+   no hay sesión → borra el token y va a `/login`; **403** = `@PreAuthorize` dice que el recurso
+   es de otro, la sesión es válida y desloguear sería un error.
+
+12. **El login responde lo mismo tanto si el usuario no existe como si la contraseña está mal.**
+   Dos mensajes distintos convierten el login en un buscador de usuarios registrados. Se sostiene
+   en dos sitios y hacen falta los dos: `SecurityBeansInjector.userDetailsService` lanza
+   `UsernameNotFoundException` (la única que `DaoAuthenticationProvider` tapa, vía
+   `hideUserNotFoundExceptions`, convirtiéndola en `BadCredentialsException`), y
+   `AuthServiceImpl.login` caza ese `BadCredentialsException` y lanza
+   `InvalidCredentialsException("Credenciales inválidas")` → 401. **No amplíes ese catch a
+   `AuthenticationException`**: se tragaría los `InternalAuthenticationServiceException`, que son
+   fallos de infraestructura y tienen que seguir siendo 500. Lo cubre
+   `AuthControllerErrorsTest`, que compara que los dos mensajes sean idénticos.
+13. **`DataIntegrityViolationException` tiene handler y devuelve 409.** Sin él lo cazaba el
+   genérico y registrarse con un username ya cogido respondía **500**. El mensaje se decide
+   mirando `getMostSpecificCause()`: si menciona `username` es "Ese nombre de usuario ya existe",
+   si no, un texto genérico de conflicto — el handler cubre cualquier violación de integridad
+   (una FK al borrar, por ejemplo) y ahí hablar de nombres de usuario sería mentir.
 
 ## Plan de trabajo activo
 

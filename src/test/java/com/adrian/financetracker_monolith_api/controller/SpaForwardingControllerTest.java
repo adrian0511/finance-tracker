@@ -113,17 +113,19 @@ class SpaForwardingControllerTest {
         }
 
         @Test
-        @DisplayName("una ruta de API sigue pidiendo token, no devuelve el HTML del SPA")
+        @DisplayName("una ruta de API sin token es 401, no el HTML del SPA")
         void apiRoutesStillRequireAuthentication() throws Exception {
+            // 401 y no 403: el cliente distingue "no hay sesion" (desloguear y mandar al login)
+            // de "el recurso es de otro" (403 de @PreAuthorize, la sesion sigue siendo valida).
             mvc.perform(get("/api/reports/balance"))
-                    .andExpect(status().isForbidden())
+                    .andExpect(status().isUnauthorized())
                     .andExpect(forwardedUrl(null));
         }
 
         @Test
         @DisplayName("una ruta inexistente bajo /api es 404 JSON aun con token valido")
         void unknownApiRouteIsNotFoundForAnAuthenticatedUser() throws Exception {
-            // Con token es cuando de verdad se ve: sin el, el 403 taparia que el comodin
+            // Con token es cuando de verdad se ve: sin el, el 401 taparia que el comodin
             // esta devolviendo index.html donde el cliente espera JSON.
             String token = registerAndLogin();
 
