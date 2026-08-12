@@ -53,7 +53,10 @@ export function CashFlowChart({ data }: { data: CashFlowResponse[] }) {
         />
         <YAxis
           tickFormatter={formatMoneyCompact}
-          width={72}
+          // width="auto" y no un numero fijo: con 72 px, «22,5 mil €» perdia el primer digito y
+          // el eje mostraba «2,5 mil €», un orden de magnitud menos. La cifra va en monoespaciada
+          // y el ancho depende de cuantos digitos tenga la escala, que no se sabe de antemano.
+          width="auto"
           tick={palette.tick}
           tickLine={false}
           axisLine={false}
