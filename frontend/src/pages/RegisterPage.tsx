@@ -69,10 +69,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-12">
+    <main className="flex min-h-dvh items-center justify-center bg-lienzo px-4 py-12">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Crear cuenta</h1>
-        <p className="mt-1 text-sm text-slate-600">Empieza a llevar el control de tus finanzas.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-tinta">Crear cuenta</h1>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Empieza a llevar el control de tus finanzas.
+        </p>
 
         <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-4">
           <TextField
@@ -123,7 +125,7 @@ export default function RegisterPage() {
           />
 
           {signUp.isError && (
-            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
               {getErrorMessage(signUp.error, 'No se ha podido crear la cuenta.')}
             </p>
           )}
@@ -131,15 +133,15 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={signUp.isPending}
-            className="mt-2 rounded-md bg-slate-900 px-4 py-2 font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60"
+            className="mt-2 rounded-md bg-accion px-4 py-2 font-medium text-accion-tinta foco disabled:opacity-60"
           >
             {signUp.isPending ? 'Creando cuenta…' : 'Crear cuenta'}
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-tinta-suave">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="font-medium text-slate-900 underline underline-offset-4">
+          <Link to="/login" className="font-medium text-tinta underline underline-offset-4">
             Iniciar sesión
           </Link>
         </p>

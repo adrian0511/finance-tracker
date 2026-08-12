@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { AXIS_TICK, GRID_COLOR, SERIES_COLOR, TOOLTIP_STYLE } from './palette'
+import { useChartPalette } from './palette'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { CashFlowResponse } from '@/types/report'
 import { formatDateTime, formatMoney, formatMoneyCompact } from '@/utils/format'
@@ -27,6 +27,7 @@ const DOT_THRESHOLD = 30
 
 export function CashFlowChart({ data }: { data: CashFlowResponse[] }) {
   const reducedMotion = useReducedMotion()
+  const palette = useChartPalette()
   const zoomable = data.length > ZOOM_THRESHOLD
 
   return (
@@ -36,34 +37,34 @@ export function CashFlowChart({ data }: { data: CashFlowResponse[] }) {
           {/* Relleno muy claro: la que lleva la informacion es la linea de arriba, el area solo
               ayuda a ver de que lado del cero esta. */}
           <linearGradient id="cashFlowFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SERIES_COLOR} stopOpacity={0.22} />
-            <stop offset="100%" stopColor={SERIES_COLOR} stopOpacity={0.02} />
+            <stop offset="0%" stopColor={palette.serie} stopOpacity={0.22} />
+            <stop offset="100%" stopColor={palette.serie} stopOpacity={0.02} />
           </linearGradient>
         </defs>
 
-        <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+        <CartesianGrid stroke={palette.rejilla} vertical={false} />
         <XAxis
           dataKey="date"
           tickFormatter={formatShortDate}
           minTickGap={32}
-          tick={AXIS_TICK}
+          tick={palette.tick}
           tickLine={false}
-          axisLine={{ stroke: GRID_COLOR }}
+          axisLine={{ stroke: palette.rejilla }}
         />
         <YAxis
           tickFormatter={formatMoneyCompact}
           width={72}
-          tick={AXIS_TICK}
+          tick={palette.tick}
           tickLine={false}
           axisLine={false}
         />
 
         {/* El cero es el unico valor con significado propio de la serie: por encima el periodo va
             en positivo, por debajo se ha gastado mas de lo que ha entrado. */}
-        <ReferenceLine y={0} stroke="#94a3b8" />
+        <ReferenceLine y={0} stroke={palette.referencia} />
 
         <Tooltip
-          {...TOOLTIP_STYLE}
+          {...palette.tooltip}
           formatter={(value) => [formatMoney(Number(value)), 'Acumulado']}
           labelFormatter={(label) => (typeof label === 'string' ? formatDateTime(label) : label)}
         />
@@ -75,15 +76,15 @@ export function CashFlowChart({ data }: { data: CashFlowResponse[] }) {
           type="stepAfter"
           dataKey="balance"
           name="Acumulado"
-          stroke={SERIES_COLOR}
+          stroke={palette.serie}
           strokeWidth={2}
           fill="url(#cashFlowFill)"
           dot={
             data.length <= DOT_THRESHOLD
-              ? { r: 3, strokeWidth: 2, stroke: '#ffffff', fill: SERIES_COLOR }
+              ? { r: 3, strokeWidth: 2, stroke: palette.superficie, fill: palette.serie }
               : false
           }
-          activeDot={{ r: 5, strokeWidth: 2, stroke: '#ffffff' }}
+          activeDot={{ r: 5, strokeWidth: 2, stroke: palette.superficie }}
           isAnimationActive={!reducedMotion}
         />
 
@@ -92,8 +93,8 @@ export function CashFlowChart({ data }: { data: CashFlowResponse[] }) {
             dataKey="date"
             height={26}
             travellerWidth={10}
-            stroke={SERIES_COLOR}
-            fill="#f8fafc"
+            stroke={palette.serie}
+            fill={palette.lienzo}
             tickFormatter={formatShortDate}
           />
         )}

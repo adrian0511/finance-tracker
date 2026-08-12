@@ -8,6 +8,12 @@ interface PanelProps {
   hint?: string
   /** Controles propios del panel (un selector de año, por ejemplo), alineados con el titulo. */
   actions?: ReactNode
+  /**
+   * Fila de controles bajo el titulo. Se pinta **siempre**, tambien con la tarjeta vacia o en
+   * error: si un filtro deja la lista sin filas y el filtro se va con ella, no queda forma de
+   * deshacerlo y la tarjeta parece decir que no hay datos.
+   */
+  toolbar?: ReactNode
   isPending: boolean
   isFetching?: boolean
   isError: boolean
@@ -29,6 +35,7 @@ export function Panel({
   title,
   hint,
   actions,
+  toolbar,
   isPending,
   isFetching = false,
   isError,
@@ -39,23 +46,25 @@ export function Panel({
   children,
 }: PanelProps) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
+    <section className="rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
-          <h2 className="font-medium text-slate-900">{title}</h2>
-          {hint !== undefined && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+          <h2 className="font-medium text-tinta">{title}</h2>
+          {hint !== undefined && <p className="mt-0.5 text-xs text-tinta-tenue">{hint}</p>}
         </div>
         {actions}
       </div>
 
+      {toolbar !== undefined && <div className="mt-3">{toolbar}</div>}
+
       {isPending ? (
-        <p className="mt-6 text-sm text-slate-500">Cargando…</p>
+        <p className="mt-6 text-sm text-tinta-tenue">Cargando…</p>
       ) : isError ? (
-        <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="mt-4 rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
           {getErrorMessage(error, errorMessage)}
         </p>
       ) : isEmpty ? (
-        <p className="mt-6 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+        <p className="mt-6 rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
           {emptyMessage}
         </p>
       ) : (

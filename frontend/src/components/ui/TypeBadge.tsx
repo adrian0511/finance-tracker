@@ -1,8 +1,8 @@
 import type { TransactionType } from '@/types/common'
 
 const VARIANTS = {
-  INCOME: { label: 'Ingreso', className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
-  EXPENSE: { label: 'Gasto', className: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+  INCOME: { label: 'Ingreso', className: 'bg-exito-tenue text-exito ring-exito/30' },
+  EXPENSE: { label: 'Gasto', className: 'bg-alerta-tenue text-alerta ring-alerta/30' },
 } as const
 
 /**

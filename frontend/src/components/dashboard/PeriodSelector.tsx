@@ -28,12 +28,12 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
   return (
     <section
       aria-label="Periodo"
-      className="flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border border-slate-200 bg-white p-4"
+      className="flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
     >
       <div
         role="group"
         aria-label="Periodos rápidos"
-        className="flex flex-wrap gap-1 rounded-md bg-slate-100 p-1"
+        className="flex flex-wrap gap-1 rounded-md bg-superficie-alta p-1"
       >
         {PRESETS.map((preset) => (
           <button
@@ -41,10 +41,10 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
             type="button"
             aria-pressed={value.preset === preset}
             onClick={() => onChange(presetPeriod(preset))}
-            className={`rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
+            className={`rounded px-3 py-1.5 text-sm foco ${
               value.preset === preset
-                ? 'bg-white font-medium text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-superficie font-medium text-tinta shadow-sm'
+                : 'text-tinta-suave hover:text-tinta'
             }`}
           >
             {PRESET_LABELS[preset]}
@@ -54,7 +54,7 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor={fromId} className="text-xs font-medium text-slate-500">
+          <label htmlFor={fromId} className="text-xs font-medium text-tinta-tenue">
             Desde
           </label>
           <input
@@ -64,12 +64,12 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
             max={value.to}
             aria-invalid={inverted}
             onChange={(event) => setCustom({ from: event.target.value })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20 aria-invalid:border-red-500"
+            className="cifra foco rounded-md border border-borde-fuerte bg-superficie px-2 py-1.5 text-sm text-tinta aria-invalid:border-alerta aria-invalid:[--anillo:var(--alerta)]"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={toId} className="text-xs font-medium text-slate-500">
+          <label htmlFor={toId} className="text-xs font-medium text-tinta-tenue">
             Hasta
           </label>
           <input
@@ -79,13 +79,13 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
             min={value.from}
             aria-invalid={inverted}
             onChange={(event) => setCustom({ to: event.target.value })}
-            className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900 outline-none focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20 aria-invalid:border-red-500"
+            className="cifra foco rounded-md border border-borde-fuerte bg-superficie px-2 py-1.5 text-sm text-tinta aria-invalid:border-alerta aria-invalid:[--anillo:var(--alerta)]"
           />
         </div>
       </div>
 
       {inverted && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-alerta">
           La fecha inicial no puede ser posterior a la final.
         </p>
       )}

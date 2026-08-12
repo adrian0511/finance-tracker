@@ -26,7 +26,7 @@ export function Pagination({
 }: PaginationProps) {
   if (pageCount <= 1) {
     return (
-      <p className="mt-3 text-sm text-slate-500">
+      <p className="mt-3 text-sm text-tinta-tenue">
         {total} {noun}
       </p>
     )
@@ -39,7 +39,7 @@ export function Pagination({
     >
       {/* aria-live para que al cambiar de pagina el lector de pantalla anuncie donde ha quedado:
           el foco se queda en el boton, que dice lo mismo antes y despues de pulsarlo. */}
-      <p aria-live="polite" className="text-slate-500">
+      <p aria-live="polite" className="text-tinta-tenue">
         {first}–{last} de {total} {noun}
       </p>
 
@@ -47,7 +47,7 @@ export function Pagination({
         <PageButton disabled={page === 1} onClick={() => onChange(page - 1)}>
           ← Anterior
         </PageButton>
-        <span className="tabular-nums text-slate-600">
+        <span className="cifra text-tinta-suave">
           {page} / {pageCount}
         </span>
         <PageButton disabled={page === pageCount} onClick={() => onChange(page + 1)}>
@@ -72,7 +72,7 @@ function PageButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-md border border-slate-300 px-3 py-1 font-medium text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+      className="rounded-md border border-borde-fuerte px-3 py-1 font-medium text-tinta foco disabled:cursor-not-allowed disabled:border-borde disabled:text-tinta-tenue"
     >
       {children}
     </button>

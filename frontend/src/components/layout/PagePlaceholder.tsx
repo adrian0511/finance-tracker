@@ -10,9 +10,9 @@ interface PagePlaceholderProps {
 export function PagePlaceholder({ title, description }: PagePlaceholderProps) {
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-      <p className="mt-2 text-slate-600">{description}</p>
-      <p className="mt-6 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+      <h1 className="text-3xl font-semibold tracking-tight text-tinta">{title}</h1>
+      <p className="mt-2 text-tinta-suave">{description}</p>
+      <p className="mt-6 rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
         Pendiente de construir.
       </p>
     </section>

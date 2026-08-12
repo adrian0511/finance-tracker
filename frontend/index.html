@@ -1,10 +1,42 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vite-scaffold</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b121b" media="(prefers-color-scheme: dark)" />
+    <title>FinanceTracker</title>
+
+    <!--
+      El tema se aplica antes de que React monte nada. Si esperase al primer render, quien tiene
+      el modo oscuro puesto veria un fogonazo blanco en cada carga: el HTML ya esta pintado
+      mucho antes de que arranque el bundle.
+
+      Es la unica copia de la clave de almacenamiento fuera de `src/utils/theme.ts`, y tiene que
+      seguir diciendo lo mismo que STORAGE_KEY de ese archivo.
+    -->
+    <script>
+      ;(function () {
+        try {
+          var guardado = localStorage.getItem('financetracker.theme')
+          var tema =
+            guardado === 'light' || guardado === 'dark'
+              ? guardado
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+
+          if (tema === 'dark') {
+            document.documentElement.classList.add('dark')
+          }
+          document.documentElement.style.colorScheme = tema
+        } catch (error) {
+          // Sin localStorage se queda en claro; es un detalle de estilo, no puede romper la carga.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

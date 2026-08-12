@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { AXIS_TICK, EXPENSE_COLOR, GRID_COLOR, INCOME_COLOR, TOOLTIP_STYLE } from './palette'
+import { useChartPalette } from './palette'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { MonthlyReportResponse } from '@/types/report'
 import { formatMoney, formatMoneyCompact } from '@/utils/format'
@@ -37,6 +37,7 @@ interface MonthlyBarChartProps {
 
 export function MonthlyBarChart({ data, onSelectMonth }: MonthlyBarChartProps) {
   const reducedMotion = useReducedMotion()
+  const palette = useChartPalette()
   const months = fillYear(data)
 
   return (
@@ -57,40 +58,41 @@ export function MonthlyBarChart({ data, onSelectMonth }: MonthlyBarChartProps) {
         barGap={2}
         className="cursor-pointer"
       >
-        <CartesianGrid stroke={GRID_COLOR} vertical={false} />
+        <CartesianGrid stroke={palette.rejilla} vertical={false} />
         <XAxis
           dataKey="label"
-          tick={AXIS_TICK}
+          tick={palette.tick}
           tickLine={false}
-          axisLine={{ stroke: GRID_COLOR }}
+          axisLine={{ stroke: palette.rejilla }}
         />
         <YAxis
           tickFormatter={formatMoneyCompact}
           width={72}
-          tick={AXIS_TICK}
+          tick={palette.tick}
           tickLine={false}
           axisLine={false}
         />
         <Tooltip
-          {...TOOLTIP_STYLE}
-          cursor={{ fill: '#f1f5f9' }}
+          {...palette.tooltip}
+          // El resalte de la columna entera, que es la zona en la que se pincha.
+          cursor={{ fill: 'var(--superficie-alta)' }}
           formatter={(value, name) => [formatMoney(Number(value)), String(name)]}
         />
-        <Legend />
+        <Legend wrapperStyle={{ fontSize: '0.875rem', color: 'var(--tinta-suave)' }} />
 
         {/* Las dos series comparten eje a proposito: son la misma magnitud (euros del mes) y es
             justo su diferencia lo que se viene a mirar. */}
         <Bar
           dataKey="incomes"
           name="Ingresos"
-          fill={INCOME_COLOR}
+          fill={palette.ingreso}
           radius={[4, 4, 0, 0]}
           isAnimationActive={!reducedMotion}
         />
         <Bar
           dataKey="expenses"
           name="Gastos"
-          fill={EXPENSE_COLOR}
+          fill={palette.gasto}
           radius={[4, 4, 0, 0]}
           isAnimationActive={!reducedMotion}
         />

@@ -5,7 +5,6 @@ export type Scenario = 'optimistic' | 'realistic' | 'pessimistic'
 interface ScenarioMeta {
   key: Scenario
   label: string
-  color: string
   /** Patron de trazo distinto en cada uno: el color no puede ser lo unico que los separe. */
   dash?: string
   balanceField: keyof Pick<
@@ -22,12 +21,13 @@ interface ScenarioMeta {
  * Los tres escenarios salen de un unico ritmo mensual y su desviacion: optimista es
  * media + desviacion, realista es la media y pesimista media - desviacion. Por eso con un ahorro
  * constante (desviacion 0) las tres lineas se solapan: no es un fallo del grafico.
+ *
+ * El color no esta aqui: depende del tema y lo pone `useChartPalette().escenarios`.
  */
 export const SCENARIOS: readonly ScenarioMeta[] = [
   {
     key: 'optimistic',
     label: 'Optimista',
-    color: '#0f766e',
     dash: '7 4',
     balanceField: 'optimisticBalance',
     etaField: 'optimisticEta',
@@ -35,14 +35,12 @@ export const SCENARIOS: readonly ScenarioMeta[] = [
   {
     key: 'realistic',
     label: 'Realista',
-    color: '#1e293b',
     balanceField: 'realisticBalance',
     etaField: 'realisticEta',
   },
   {
     key: 'pessimistic',
     label: 'Pesimista',
-    color: '#b45309',
     dash: '2 4',
     balanceField: 'pessimisticBalance',
     etaField: 'pessimisticEta',

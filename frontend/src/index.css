@@ -1,111 +1,249 @@
 @import 'tailwindcss';
 
+/*
+  ==========================================================================
+  Sistema de tokens de FinanceTracker
+  ==========================================================================
+
+  La idea es «instrumento de medida», no «app de banco»: fondo de acero frío,
+  un único acento de acción (cobalto) y un segundo acento de latón reservado
+  para una sola cosa en toda la app — la meta de ahorro. Nada de crema con
+  terracota, nada de negro con verde ácido, nada de retícula de periódico.
+
+  Seis colores con nombre sostienen todo lo demás:
+
+    tinta     #0d1520   acero casi negro. Texto en claro, lienzo en oscuro.
+    acero     #4a5c6f   el gris azulado del que salen textos y bordes.
+    bruma     #e7ecf3   la niebla clara: fondos hundidos y separadores.
+    nácar     #eef1f6   el lienzo de la página en claro.
+    cobalto   #1a66c2   acción, foco, selección. Es el primer color de la
+                        escala de gráficos, así que la UI y los datos hablan
+                        el mismo idioma.
+    latón     #8a5d0c   el acento de firma. Solo la meta: la línea del
+                        objetivo en la proyección y la barra de una meta
+                        alcanzada. En ningún sitio más.
+
+  Cada token semántico de abajo tiene su valor en claro y en oscuro, y todos
+  los pares que llevan texto están comprobados con `pnpm palette`
+  (scripts/validate-palette.mjs): contraste WCAG y separación perceptual en
+  OKLab bajo visión normal, protanopia y deuteranopia. No se tocan a ojo.
+*/
+
+/* El tema lo decide una clase en <html>, no el sistema: así el usuario puede
+   llevar la contraria a su SO. `utils/theme.ts` es quien pone la clase, y la
+   opción «sistema» es la que sigue a `prefers-color-scheme`. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-lienzo: var(--lienzo);
+  --color-superficie: var(--superficie);
+  --color-superficie-alta: var(--superficie-alta);
+  --color-borde: var(--borde);
+  --color-borde-fuerte: var(--borde-fuerte);
+
+  --color-tinta: var(--tinta);
+  --color-tinta-suave: var(--tinta-suave);
+  --color-tinta-tenue: var(--tinta-tenue);
+
+  --color-cobalto: var(--cobalto);
+  --color-cobalto-tenue: var(--cobalto-tenue);
+  --color-laton: var(--laton);
+  --color-laton-tenue: var(--laton-tenue);
+
+  --color-alerta: var(--alerta);
+  --color-alerta-tenue: var(--alerta-tenue);
+  --color-exito: var(--exito);
+  --color-exito-tenue: var(--exito-tenue);
+
+  /* Relleno y texto de los botones macizos. Son un par y se usan siempre juntos: en claro el
+     boton es cobalto con letra blanca, y en oscuro se da la vuelta (cobalto claro con letra del
+     lienzo), porque blanco sobre el cobalto claro del tema oscuro se queda en 2.4:1. */
+  --color-accion: var(--accion);
+  --color-accion-tinta: var(--accion-tinta);
+  --color-peligro: var(--peligro);
+  --color-peligro-tinta: var(--peligro-tinta);
+
+  --shadow-tarjeta: var(--sombra);
+
+  /*
+    Tres papeles tipográficos, y a propósito ninguno es una fuente descargada:
+    el jar se sirve entero desde el mismo origen y no quiero ni una petición a
+    un CDN ni binarios en el repo por una decisión de estilo. Son pilas de
+    fuentes del sistema elegidas por carácter, con caída ordenada.
+
+      display  grotesca técnica y estrecha, de panel de instrumentos.
+      texto    la de leer, la más neutra de cada sistema.
+      cifra    monoespaciada. Es la que hace que una columna de euros se lea
+               como una columna y no como texto: dígitos del mismo ancho.
+  */
+  --font-display:
+    'Bahnschrift', 'DIN Alternate', 'Avenir Next Condensed', 'Segoe UI Variable Display', system-ui,
+    sans-serif;
+  --font-texto:
+    'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, -apple-system, 'Helvetica Neue',
+    sans-serif;
+  --font-cifra: 'Cascadia Mono', ui-monospace, 'SF Mono', 'Roboto Mono', Consolas, monospace;
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --lienzo: #eef1f6;
+  --superficie: #ffffff;
+  --superficie-alta: #e7ecf3;
+  --borde: #d7dfea;
+  --borde-fuerte: #6f8199;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --tinta: #0d1520;
+  --tinta-suave: #4a5c6f;
+  --tinta-tenue: #586a7c;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --cobalto: #1a66c2;
+  --cobalto-tenue: #e8f0fb;
+  --laton: #8a5d0c;
+  --laton-tenue: #fbf1dd;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+  --alerta: #b42318;
+  --alerta-tenue: #fdecea;
+  --exito: #146c43;
+  --exito-tenue: #e6f5ed;
+
+  --accion: #1a66c2;
+  --accion-tinta: #ffffff;
+  --peligro: #b42318;
+  --peligro-tinta: #ffffff;
+
+  --velo: rgb(13 21 32 / 0.45);
+  --sombra: 0 1px 2px rgb(13 21 32 / 0.06), 0 1px 3px rgb(13 21 32 / 0.08);
+}
+
+/*
+  El oscuro no es el claro con los colores invertidos: el lienzo baja a un
+  acero muy oscuro y las tarjetas suben desde él, que es al revés que en claro
+  (allí el lienzo es gris y la tarjeta blanca). En los dos casos la tarjeta se
+  separa del fondo, que es lo único que tiene que pasar.
+
+  Los acentos suben de claridad porque el mismo cobalto que contrasta 5.6:1
+  sobre blanco se queda en 1.9:1 sobre el acero oscuro.
+*/
+.dark {
+  --lienzo: #0b121b;
+  --superficie: #131d29;
+  --superficie-alta: #1b2735;
+  --borde: #28394d;
+  --borde-fuerte: #566a80;
+
+  --tinta: #e7edf4;
+  --tinta-suave: #a2b3c5;
+  --tinta-tenue: #8496a8;
+
+  --cobalto: #6ba8f0;
+  --cobalto-tenue: #16273c;
+  --laton: #d9a441;
+  --laton-tenue: #2e2413;
+
+  --alerta: #f07a6f;
+  --alerta-tenue: #33191a;
+  --exito: #4ec98a;
+  --exito-tenue: #10291f;
+
+  --accion: #6ba8f0;
+  --accion-tinta: #0b121b;
+  --peligro: #f07a6f;
+  --peligro-tinta: #0b121b;
+
+  --velo: rgb(3 7 12 / 0.6);
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+@layer base {
+  /* color-scheme pinta los controles nativos que no son nuestros: el calendario
+     de <input type="date">, las barras de scroll y el fondo del <select>. Sin
+     esto salen blancos en medio del tema oscuro. */
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--lienzo);
+    color: var(--tinta);
+    font-family: var(--font-texto);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  /* El backdrop del <dialog> nativo no hereda nada del árbol: se pinta aparte. */
+  dialog::backdrop {
+    background-color: var(--velo);
+  }
+
+  ::selection {
+    background-color: var(--cobalto-tenue);
+    color: var(--tinta);
+  }
+
+  /* Cambiar de tema con una transición larga marea; sin ninguna, el salto se
+     nota como un parpadeo. 120ms solo en lo que cambia de color. */
+  body,
+  header,
+  section,
+  dialog,
+  input,
+  select,
+  button {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/*
+  Foco visible en un solo sitio. Son dos anillos: el interior del color del
+  lienzo separa el exterior del propio control, así el anillo se ve igual sobre
+  una tarjeta que sobre un botón oscuro, y en los dos temas.
+*/
+@utility foco {
+  outline: none;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  &:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--lienzo),
+      0 0 0 4px var(--anillo, var(--cobalto));
   }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+/*
+  El color del anillo sale de --anillo para que un campo invalido pueda cambiarlo sin repetir la
+  sombra entera: `aria-invalid:[--anillo:var(--alerta)]` en el propio input.
+*/
 
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/*
+  Cifras: monoespaciada y de ancho tabular. Va en importes, fechas de tabla,
+  ejes y porcentajes — todo lo que se compara con lo de la fila de al lado.
+*/
+@utility cifra {
+  font-family: var(--font-cifra);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }

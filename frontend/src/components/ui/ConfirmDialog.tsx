@@ -49,18 +49,18 @@ export function ConfirmDialog({
         onCancel()
       }}
       aria-labelledby="confirm-title"
-      className="m-auto w-full max-w-sm rounded-lg border border-slate-200 p-6 text-slate-900 backdrop:bg-slate-900/40"
+      className="m-auto w-full max-w-sm rounded-lg border border-borde bg-superficie p-6 text-tinta shadow-tarjeta"
     >
       <h2 id="confirm-title" className="text-lg font-semibold">
         {title}
       </h2>
-      <p className="mt-2 text-sm text-slate-600">{description}</p>
+      <p className="mt-2 text-sm text-tinta-suave">{description}</p>
 
       <div className="mt-6 flex justify-end gap-3">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+          className="rounded-md border border-borde-fuerte px-3 py-2 text-sm font-medium foco"
         >
           Cancelar
         </button>
@@ -68,7 +68,7 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={pending}
-          className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 disabled:opacity-60"
+          className="rounded-md bg-peligro px-3 py-2 text-sm font-medium text-peligro-tinta foco disabled:opacity-60"
         >
           {pending ? 'Borrando…' : confirmLabel}
         </button>

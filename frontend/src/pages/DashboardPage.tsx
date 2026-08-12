@@ -12,6 +12,29 @@ import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
 import { useCashFlowReport, useCategoryReport, useMonthlyReport } from '@/hooks/useReports'
 import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
 
+/**
+ * La pagina, en ancho grande (en movil es todo una columna, en el mismo orden):
+ *
+ *   ┌───────────────────────────────────────────────────────────────┐
+ *   │ PERIODO   [hoy][semana][mes][año]   desde ▢   hasta ▢          │
+ *   ├───────────────────┬───────────────────┬───────────────────────┤
+ *   │ Ingresos          │ Gastos            │ Balance neto          │
+ *   ├───────────────────┴───────────────────┴───────────────────────┤
+ *   │ Flujo de caja                                    (ancho total)│
+ *   ├───────────────────────────────┬───────────────────────────────┤
+ *   │ Gasto por categoria (donut)   │ Metas de ahorro               │
+ *   ├───────────────────────────────┴───────────────────────────────┤
+ *   │ Movimientos del periodo          ← lo que filtra el donut      │
+ *   ├───────────────────────────────────────────────────────────────┤
+ *   │ Ingresos y gastos por mes                            [año ▾]  │
+ *   └───────────────────────────────────────────────────────────────┘
+ *
+ * Dos cosas del orden no son estéticas y no se pueden mover sueltas: el periodo va arriba del
+ * todo porque manda sobre todo lo que hay debajo, y la tabla va inmediatamente bajo el donut
+ * porque es lo que se filtra al pinchar una porcion — separarlos deja el filtro fuera de la
+ * vista y la tabla cambia sin que se vea por que.
+ */
+
 /** Años que ofrece el selector del grafico mensual, hacia atras desde el actual. */
 const YEARS_BACK = 5
 
@@ -45,8 +68,8 @@ export default function DashboardPage() {
   return (
     <section className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Resumen</h1>
-        <p className="mt-2 text-slate-600">
+        <h1 className="text-3xl font-semibold tracking-tight text-tinta">Resumen</h1>
+        <p className="mt-2 text-tinta-suave">
           Todo lo de esta página se mide sobre el mismo periodo, menos el gráfico anual, que tiene
           su propio selector.
         </p>
@@ -70,23 +93,27 @@ export default function DashboardPage() {
         <CashFlowChart data={cashFlow.data ?? []} />
       </Panel>
 
-      <Panel
-        title="Gasto por categoría"
-        hint="Solo gastos. Pincha una porción para filtrar los movimientos de abajo."
-        isPending={categories.isPending}
-        isFetching={categories.isFetching}
-        isError={categories.isError}
-        error={categories.error}
-        errorMessage="No se ha podido cargar el desglose por categoría."
-        isEmpty={categories.data?.length === 0}
-        emptyMessage="No hay gastos en este periodo."
-      >
-        <CategoryPieChart
-          data={categories.data ?? []}
-          selected={selection}
-          onSelect={setSelection}
-        />
-      </Panel>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Panel
+          title="Gasto por categoría"
+          hint="Solo gastos. Pincha una porción para filtrar los movimientos de abajo."
+          isPending={categories.isPending}
+          isFetching={categories.isFetching}
+          isError={categories.isError}
+          error={categories.error}
+          errorMessage="No se ha podido cargar el desglose por categoría."
+          isEmpty={categories.data?.length === 0}
+          emptyMessage="No hay gastos en este periodo."
+        >
+          <CategoryPieChart
+            data={categories.data ?? []}
+            selected={selection}
+            onSelect={setSelection}
+          />
+        </Panel>
+
+        <GoalsSummary />
+      </div>
 
       <RecentTransactions
         period={period}
@@ -114,8 +141,6 @@ export default function DashboardPage() {
           }}
         />
       </Panel>
-
-      <GoalsSummary />
     </section>
   )
 }
@@ -125,12 +150,12 @@ function YearSelect({ value, onChange }: { value: number; onChange: (year: numbe
   const years = Array.from({ length: YEARS_BACK + 1 }, (_, index) => current - index)
 
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-600">
+    <label className="flex items-center gap-2 text-sm text-tinta-suave">
       Año
       <select
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-900 outline-none focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20"
+        className="cifra foco rounded-md border border-borde-fuerte bg-superficie px-2 py-1 text-tinta"
       >
         {years.map((year) => (
           <option key={year} value={year}>

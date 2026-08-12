@@ -1,6 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
-import { CATEGORY_COLORS, OTHER_COLOR, TOOLTIP_STYLE } from './palette'
+import { useChartPalette, type ChartPalette } from './palette'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { CategoryReportResponse } from '@/types/report'
 import { formatMoney } from '@/utils/format'
@@ -35,7 +35,8 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartProps) {
   const reducedMotion = useReducedMotion()
-  const slices = buildSlices(data)
+  const palette = useChartPalette()
+  const slices = buildSlices(data, palette)
   const total = slices.reduce((sum, slice) => sum + slice.total, 0)
 
   // Pinchar la porcion ya elegida la deselecciona: es la unica forma de volver atras sin tener
@@ -54,7 +55,7 @@ export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartP
             outerRadius="88%"
             // 2px de hueco entre porciones, que es lo que las separa sin dibujarles un borde.
             paddingAngle={1}
-            stroke="#ffffff"
+            stroke={palette.superficie}
             strokeWidth={2}
             onClick={(_, index) => {
               const slice = slices[index]
@@ -76,7 +77,7 @@ export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartP
             ))}
           </Pie>
           <Tooltip
-            {...TOOLTIP_STYLE}
+            {...palette.tooltip}
             formatter={(value, name) => [formatMoney(Number(value)), String(name)]}
           />
         </PieChart>
@@ -94,8 +95,8 @@ export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartP
                 type="button"
                 aria-pressed={isSelected}
                 onClick={() => toggle(slice)}
-                className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${
-                  isSelected ? 'bg-slate-100 font-medium' : 'hover:bg-slate-50'
+                className={`foco flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm ${
+                  isSelected ? 'bg-cobalto-tenue font-medium' : 'hover:bg-superficie-alta'
                 }`}
               >
                 <span
@@ -103,9 +104,9 @@ export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartP
                   className="size-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: slice.color }}
                 />
-                <span className="flex-1 truncate text-slate-700">{slice.label}</span>
-                <span className="tabular-nums text-slate-900">{formatMoney(slice.total)}</span>
-                <span className="w-12 text-right tabular-nums text-slate-500">
+                <span className="flex-1 truncate text-tinta-suave">{slice.label}</span>
+                <span className="cifra text-tinta">{formatMoney(slice.total)}</span>
+                <span className="cifra w-12 text-right text-tinta-tenue">
                   {total === 0 ? '—' : `${Math.round((slice.total / total) * 100)}%`}
                 </span>
               </button>
@@ -122,7 +123,7 @@ export function CategoryPieChart({ data, selected, onSelect }: CategoryPieChartP
  * quedarse con las primeras: las que sobran se suman en una sola porcion que conserva la lista
  * de categorias que la componen para poder filtrar por ellas.
  */
-function buildSlices(data: CategoryReportResponse[]): Slice[] {
+function buildSlices(data: CategoryReportResponse[], palette: ChartPalette): Slice[] {
   const named = data.map((row) => ({
     label: row.category ?? UNCATEGORIZED,
     categories: [row.category],
@@ -130,19 +131,19 @@ function buildSlices(data: CategoryReportResponse[]): Slice[] {
   }))
 
   if (named.length <= MAX_SLICES) {
-    return named.map((slice, index) => ({ ...slice, color: color(index) }))
+    return named.map((slice, index) => ({ ...slice, color: color(palette, index) }))
   }
 
   const head = named.slice(0, MAX_SLICES - 1)
   const tail = named.slice(MAX_SLICES - 1)
 
   return [
-    ...head.map((slice, index) => ({ ...slice, color: color(index) })),
+    ...head.map((slice, index) => ({ ...slice, color: color(palette, index) })),
     {
       label: `Otras (${tail.length})`,
       categories: tail.flatMap((slice) => slice.categories),
       total: tail.reduce((sum, slice) => sum + slice.total, 0),
-      color: OTHER_COLOR,
+      color: palette.otras,
     },
   ]
 }
@@ -151,6 +152,6 @@ function buildSlices(data: CategoryReportResponse[]): Slice[] {
  * El color va por posicion en la escala y nunca se genera uno nuevo: la lista esta validada como
  * conjunto, y un septimo tono inventado se confundiria con alguno de los seis.
  */
-function color(index: number): string {
-  return CATEGORY_COLORS[index] ?? OTHER_COLOR
+function color(palette: ChartPalette, index: number): string {
+  return palette.categorias[index] ?? palette.otras
 }

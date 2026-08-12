@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { getErrorMessage } from '@/api/errors'
+import { useChartPalette } from '@/components/charts/palette'
 import { ProjectionChart } from '@/components/charts/ProjectionChart'
 import { monthlyRate, SCENARIOS, type Scenario } from '@/components/charts/scenarios'
 import { useSavingsGoalProjection } from '@/hooks/useSavingsGoals'
@@ -18,19 +19,20 @@ const ALL_VISIBLE: Record<Scenario, boolean> = {
 export default function GoalDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { data: projection, isPending, isError, error } = useSavingsGoalProjection(id)
+  const palette = useChartPalette()
   const [visible, setVisible] = useState<Record<Scenario, boolean>>(ALL_VISIBLE)
 
   const toggle = (scenario: Scenario) =>
     setVisible((current) => ({ ...current, [scenario]: !current[scenario] }))
 
   if (isPending) {
-    return <p className="text-slate-600">Cargando la proyección…</p>
+    return <p className="text-tinta-suave">Cargando la proyección…</p>
   }
 
   if (isError) {
     return (
       <div>
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
           {projectionErrorMessage(error)}
         </p>
         <BackLink />
@@ -46,8 +48,10 @@ export default function GoalDetailPage() {
     <section>
       <BackLink />
 
-      <h1 className="mt-2 text-2xl font-semibold text-slate-900">{projection.goalName}</h1>
-      <p className="mt-1 text-slate-600">
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-tinta">
+        {projection.goalName}
+      </h1>
+      <p className="mt-1 text-tinta-suave">
         Objetivo de {formatMoney(projection.targetAmount)}
         {projection.targetDate !== null && (
           <>
@@ -77,7 +81,13 @@ export default function GoalDetailPage() {
       </dl>
 
       <fieldset className="mt-8">
-        <legend className="text-sm font-medium text-slate-700">Escenarios</legend>
+        <legend className="text-sm font-medium text-tinta-suave">Escenarios</legend>
+        {/* La banda hay que explicarla en texto: rayada no significa nada por si misma, y en la
+            leyenda del grafico no cabe sin repetir lo que ya dicen las tres lineas. */}
+        <p className="mt-1 text-sm text-tinta-tenue">
+          La zona rayada entre la pesimista y la optimista es el margen del ritmo de ahorro. Si se
+          cierra en una línea es que ahorras siempre lo mismo, no que falte un dato.
+        </p>
         <div className="mt-2 flex flex-wrap gap-4">
           {SCENARIOS.map((scenario) => {
             const reachable = projection[scenario.etaField] !== null
@@ -85,19 +95,23 @@ export default function GoalDetailPage() {
             return (
               <label
                 key={scenario.key}
-                className={`flex items-center gap-2 text-sm ${reachable ? 'text-slate-700' : 'text-slate-400'}`}
+                className={`flex items-center gap-2 text-sm ${reachable ? 'text-tinta-suave' : 'text-tinta-tenue'}`}
               >
                 <input
                   type="checkbox"
                   checked={reachable && visible[scenario.key]}
                   disabled={!reachable}
                   onChange={() => toggle(scenario.key)}
-                  className="size-4 accent-slate-900"
+                  className="size-4 accent-cobalto"
                 />
                 <span
                   aria-hidden="true"
                   className="inline-block h-0.5 w-6"
-                  style={{ backgroundColor: reachable ? scenario.color : '#cbd5e1' }}
+                  style={{
+                    backgroundColor: reachable
+                      ? palette.escenarios[scenario.key]
+                      : 'var(--borde-fuerte)',
+                  }}
                 />
                 {scenario.label}
                 {!reachable && ' (no llega)'}
@@ -107,12 +121,12 @@ export default function GoalDetailPage() {
         </div>
       </fieldset>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+      <div className="mt-4 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta">
         <ProjectionChart projection={projection} visible={visible} />
       </div>
 
       {unreachable.length > 0 && (
-        <div role="status" className="mt-4 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div role="status" className="mt-4 rounded-md bg-laton-tenue px-4 py-3 text-sm text-laton">
           <p className="font-medium">
             {unreachable.length === SCENARIOS.length
               ? 'A este ritmo no alcanzas la meta en ningún escenario.'
@@ -150,13 +164,16 @@ function Etas({ projection }: { projection: SavingsProjectionResponse }) {
         const beyondChart = eta !== null && lastDrawnMonth !== undefined && eta > lastDrawnMonth
 
         return (
-          <div key={scenario.key} className="rounded-lg border border-slate-200 bg-white p-4">
-            <dt className="text-sm text-slate-500">{scenario.label}</dt>
-            <dd className="mt-1 font-medium text-slate-900">
+          <div
+            key={scenario.key}
+            className="rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
+          >
+            <dt className="text-sm text-tinta-tenue">{scenario.label}</dt>
+            <dd className="mt-1 font-medium text-tinta">
               {eta === null ? 'No se alcanza' : formatYearMonth(eta)}
             </dd>
             {beyondChart && (
-              <p className="mt-1 text-xs text-slate-500">Más allá del tramo del gráfico.</p>
+              <p className="mt-1 text-xs text-tinta-tenue">Más allá del tramo del gráfico.</p>
             )}
           </div>
         )
@@ -176,14 +193,14 @@ function Deadline({ projection }: { projection: SavingsProjectionResponse }) {
 
   if (projection.onTrackForTargetDate) {
     return (
-      <p className="mt-4 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+      <p className="mt-4 rounded-md bg-exito-tenue px-4 py-3 text-sm text-exito">
         Vas a tiempo para la fecha límite.
       </p>
     )
   }
 
   return (
-    <p role="status" className="mt-4 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <p role="status" className="mt-4 rounded-md bg-laton-tenue px-4 py-3 text-sm text-laton">
       No llegas a la fecha límite al ritmo actual.
       {projection.additionalMonthlySavingsNeeded !== null &&
         ` Tendrías que ahorrar ${formatMoney(projection.additionalMonthlySavingsNeeded)} más cada mes.`}
@@ -193,10 +210,10 @@ function Deadline({ projection }: { projection: SavingsProjectionResponse }) {
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="mt-1 text-xl tabular-nums text-slate-900">{value}</dd>
-      {hint !== undefined && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
+    <div className="rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta">
+      <dt className="text-sm text-tinta-tenue">{label}</dt>
+      <dd className="mt-1 text-xl cifra text-tinta">{value}</dd>
+      {hint !== undefined && <p className="mt-1 text-xs text-tinta-tenue">{hint}</p>}
     </div>
   )
 }
@@ -205,7 +222,7 @@ function BackLink() {
   return (
     <Link
       to="/goals"
-      className="rounded text-sm text-slate-600 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+      className="rounded text-sm text-tinta-suave underline underline-offset-4 foco"
     >
       ← Volver a metas
     </Link>

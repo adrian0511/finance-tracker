@@ -69,15 +69,15 @@ export default function GoalsPage() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-900">Metas de ahorro</h1>
-      <p className="mt-2 text-slate-600">
+      <h1 className="text-3xl font-semibold tracking-tight text-tinta">Metas de ahorro</h1>
+      <p className="mt-2 text-tinta-suave">
         El avance se mide contra el saldo de todas tus cuentas, no contra una hucha aparte.
       </p>
 
       <form
         onSubmit={onSubmit}
         noValidate
-        className="mt-6 grid gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="mt-6 grid gap-4 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta sm:grid-cols-2 lg:grid-cols-4"
       >
         <TextField
           id="name"
@@ -107,23 +107,23 @@ export default function GoalsPage() {
         <button
           type="submit"
           disabled={createGoal.isPending}
-          className="mt-7 h-10 rounded-md bg-slate-900 px-4 font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60"
+          className="mt-7 h-10 rounded-md bg-accion px-4 font-medium text-accion-tinta foco disabled:opacity-60"
         >
           {createGoal.isPending ? 'Creando…' : 'Crear meta'}
         </button>
       </form>
 
-      {isPending && <p className="mt-8 text-slate-600">Cargando metas…</p>}
+      {isPending && <p className="mt-8 text-tinta-suave">Cargando metas…</p>}
 
       {isError && (
-        <p role="alert" className="mt-8 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="mt-8 rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
           {getErrorMessage(error, 'No se han podido cargar las metas.')}
         </p>
       )}
 
       {goals !== undefined &&
         (goals.length === 0 ? (
-          <p className="mt-8 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+          <p className="mt-8 rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
             Todavía no tienes ninguna meta.
           </p>
         ) : (
@@ -131,13 +131,11 @@ export default function GoalsPage() {
             {goals.map((goal) => (
               <li
                 key={goal.id}
-                className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
               >
-                <h2 className="font-medium text-slate-900">{goal.name}</h2>
-                <p className="text-2xl tabular-nums text-slate-900">
-                  {formatMoney(goal.targetAmount)}
-                </p>
-                <p className="text-sm text-slate-600">
+                <h2 className="font-medium text-tinta">{goal.name}</h2>
+                <p className="cifra text-2xl text-tinta">{formatMoney(goal.targetAmount)}</p>
+                <p className="text-sm text-tinta-suave">
                   {goal.targetDate === null ? (
                     'Sin fecha límite'
                   ) : (
@@ -151,14 +149,14 @@ export default function GoalsPage() {
                 <div className="mt-auto flex items-center justify-between pt-2">
                   <Link
                     to={`/goals/${goal.id}`}
-                    className="rounded text-sm font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                    className="rounded text-sm font-medium text-tinta underline underline-offset-4 foco"
                   >
                     Ver proyección
                   </Link>
                   <button
                     type="button"
                     onClick={() => setPendingDeletion(goal)}
-                    className="rounded text-sm text-red-700 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                    className="rounded text-sm text-alerta underline underline-offset-4 foco"
                   >
                     Borrar
                   </button>

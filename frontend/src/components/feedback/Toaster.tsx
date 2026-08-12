@@ -1,9 +1,9 @@
 import { useToastStore } from '@/store/toastStore'
 
 const VARIANT_STYLES = {
-  error: 'border-red-200 bg-red-50 text-red-800',
-  info: 'border-slate-200 bg-white text-slate-800',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  error: 'border-alerta bg-alerta-tenue text-alerta',
+  info: 'border-borde bg-superficie text-tinta',
+  success: 'border-exito bg-exito-tenue text-exito',
 } as const
 
 /**
@@ -29,7 +29,7 @@ export function Toaster() {
             type="button"
             onClick={() => dismiss(toast.id)}
             aria-label="Cerrar aviso"
-            className="rounded text-lg leading-none opacity-60 outline-none hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current"
+            className="rounded text-lg leading-none opacity-60 foco hover:opacity-100"
           >
             ×
           </button>

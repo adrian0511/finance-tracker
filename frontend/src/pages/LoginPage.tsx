@@ -62,10 +62,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-12">
+    <main className="flex min-h-dvh items-center justify-center bg-lienzo px-4 py-12">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
-        <p className="mt-1 text-sm text-slate-600">Accede a tus cuentas y movimientos.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-tinta">Iniciar sesión</h1>
+        <p className="mt-1 text-sm text-tinta-suave">Accede a tus cuentas y movimientos.</p>
 
         <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-4">
           <TextField
@@ -86,7 +86,7 @@ export default function LoginPage() {
           />
 
           {login.isError && (
-            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
               {getErrorMessage(login.error, 'No se ha podido iniciar sesión.')}
             </p>
           )}
@@ -94,15 +94,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={login.isPending}
-            className="mt-2 rounded-md bg-slate-900 px-4 py-2 font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60"
+            className="mt-2 rounded-md bg-accion px-4 py-2 font-medium text-accion-tinta foco disabled:opacity-60"
           >
             {login.isPending ? 'Entrando…' : 'Entrar'}
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-tinta-suave">
           ¿No tienes cuenta?{' '}
-          <Link to="/register" className="font-medium text-slate-900 underline underline-offset-4">
+          <Link to="/register" className="font-medium text-tinta underline underline-offset-4">
             Crear una
           </Link>
         </p>

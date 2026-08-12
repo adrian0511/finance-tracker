@@ -1,15 +1,19 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { CategorySelection } from '@/components/charts/CategoryPieChart'
 import { Panel } from '@/components/dashboard/Panel'
+import { TransactionFilters } from '@/components/transactions/TransactionFilters'
 import { Pagination } from '@/components/ui/Pagination'
 import { TypeBadge } from '@/components/ui/TypeBadge'
 import { useAccounts } from '@/hooks/useAccounts'
 import { usePagination } from '@/hooks/usePagination'
 import { useTransactions } from '@/hooks/useTransactions'
+import type { TransactionType } from '@/types/common'
 import type { TransactionResponse } from '@/types/transaction'
 import { formatDateTime, formatMoney } from '@/utils/format'
 import type { Period } from '@/utils/period'
+import { TYPE_LABELS } from '@/utils/transactionFilter'
 
 /** Pagina corta: es una tarjeta de resumen dentro de una pagina con cuatro graficos mas. */
 const PAGE_SIZE = 8
@@ -21,7 +25,8 @@ interface RecentTransactionsProps {
 }
 
 /**
- * Los ultimos movimientos del periodo, con el filtro que llega del donut.
+ * Los ultimos movimientos del periodo, con el filtro que llega del donut y el de tipo que se
+ * elige aqui.
  *
  * Se recorta en el cliente sobre la lista completa del usuario, que es la unica que expone la
  * API (no hay un endpoint de movimientos por rango). Funciona y es instantaneo al cambiar de
@@ -36,16 +41,29 @@ export function RecentTransactions({
   const { data: transactions, isPending, isFetching, isError, error } = useTransactions()
   const { data: accounts } = useAccounts()
 
+  // El tipo es estado local y no de la URL, al reves que en la pantalla de Movimientos: aqui es
+  // un ajuste de una tarjeta dentro del dashboard, no la vista entera.
+  const [type, setType] = useState<TransactionType | null>(null)
+
+  // Una porcion del donut ya significa «gastos de esta categoria», asi que mientras haya una
+  // elegida el tipo se queda fijo en gastos. Sin esto, pulsar «Ingresos» daria siempre una tabla
+  // vacia y nada explicaria por que.
+  const lockedType = selection !== null ? ('EXPENSE' as const) : undefined
+  const effectiveType = lockedType ?? type
+
   const accountNames = new Map((accounts ?? []).map((account) => [account.id, account.name]))
   const matching = (transactions ?? []).filter(
-    (transaction) => inPeriod(transaction, period) && inSelection(transaction, selection),
+    (transaction) =>
+      inPeriod(transaction, period) &&
+      inSelection(transaction, selection) &&
+      (effectiveType === null || transaction.type === effectiveType),
   )
-  // Cambiar de periodo o de categoria devuelve a la pagina 1: son dos listas distintas, y la
+  // Cambiar de periodo, de categoria o de tipo devuelve a la pagina 1: son listas distintas, y la
   // pagina 3 de la anterior no significa nada en la nueva.
   const pages = usePagination(
     matching,
     PAGE_SIZE,
-    `${period.from}|${period.to}|${selection?.label}`,
+    `${period.from}|${period.to}|${selection?.label}|${effectiveType}`,
   )
 
   return (
@@ -61,12 +79,21 @@ export function RecentTransactions({
           <button
             type="button"
             onClick={onClearSelection}
-            className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            className="foco rounded-full bg-superficie-alta px-3 py-1 text-sm text-tinta-suave"
           >
             {selection.label} <span aria-hidden="true">✕</span>
             <span className="sr-only">Quitar el filtro de categoría</span>
           </button>
         )
+      }
+      toolbar={
+        <TransactionFilters
+          filter={{ from: period.from, to: period.to, category: null, type }}
+          // Aqui solo se pinta el control de tipo, asi que el parche solo puede traer eso.
+          onChange={({ type: next }) => setType(next ?? null)}
+          lockedType={lockedType}
+          lockedReason="La categoría del donut ya son gastos."
+        />
       }
       isPending={isPending}
       isFetching={isFetching}
@@ -74,15 +101,11 @@ export function RecentTransactions({
       error={error}
       errorMessage="No se han podido cargar los movimientos."
       isEmpty={matching.length === 0}
-      emptyMessage={
-        selection === null
-          ? 'No hay movimientos en este periodo.'
-          : `No hay movimientos de ${selection.label} en este periodo.`
-      }
+      emptyMessage={emptyMessage(selection, effectiveType)}
     >
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500">
+          <thead className="border-b border-borde text-tinta-tenue">
             <tr>
               <th scope="col" className="py-2 pr-4 font-medium">
                 Fecha
@@ -103,23 +126,23 @@ export function RecentTransactions({
           </thead>
           <tbody>
             {pages.items.map((transaction) => (
-              <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
-                <td className="py-2 pr-4 whitespace-nowrap tabular-nums text-slate-600">
+              <tr key={transaction.id} className="border-b border-borde last:border-0">
+                <td className="cifra py-2 pr-4 whitespace-nowrap text-tinta-suave">
                   {formatDateTime(transaction.date)}
                 </td>
-                <td className="py-2 pr-4 text-slate-900">{transaction.category ?? '—'}</td>
+                <td className="py-2 pr-4 text-tinta">{transaction.category ?? '—'}</td>
                 <td className="py-2 pr-4">
                   <TypeBadge type={transaction.type} />
                 </td>
                 <td
-                  className={`py-2 pr-4 text-right whitespace-nowrap tabular-nums ${
-                    transaction.type === 'INCOME' ? 'text-emerald-700' : 'text-slate-900'
+                  className={`cifra py-2 pr-4 text-right whitespace-nowrap ${
+                    transaction.type === 'INCOME' ? 'text-exito' : 'text-tinta'
                   }`}
                 >
                   {transaction.type === 'EXPENSE' && '−'}
                   {formatMoney(transaction.amount)}
                 </td>
-                <td className="py-2 text-slate-600">
+                <td className="py-2 text-tinta-suave">
                   {accountNames.get(transaction.accountId) ?? '—'}
                 </td>
               </tr>
@@ -138,18 +161,29 @@ export function RecentTransactions({
         onChange={pages.setPage}
       />
 
-      {/* El enlace se queda aunque ahora se pueda paginar aqui: la pantalla de movimientos deja
-          ademas borrar y dar de alta, que es a lo que se va cuando la lista es larga. */}
+      {/* El enlace se queda aunque ahora se pueda paginar y filtrar aqui: la pantalla de
+          movimientos deja ademas borrar y dar de alta, que es a lo que se va cuando la lista es
+          larga. Se lleva puesto el filtro que haya, para no tener que rehacerlo alli. */}
       <p className="mt-2 text-sm">
         <Link
-          to={transactionsLink(period, selection)}
-          className="rounded font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          to={transactionsLink(period, selection, effectiveType)}
+          className="foco rounded font-medium text-cobalto underline underline-offset-4"
         >
           Abrir en Movimientos
         </Link>
       </p>
     </Panel>
   )
+}
+
+function emptyMessage(selection: CategorySelection | null, type: TransactionType | null): string {
+  if (selection !== null) {
+    return `No hay movimientos de ${selection.label} en este periodo.`
+  }
+  if (type !== null) {
+    return `No hay ${TYPE_LABELS[type].toLowerCase()} en este periodo.`
+  }
+  return 'No hay movimientos en este periodo.'
 }
 
 /**
@@ -162,6 +196,10 @@ function inPeriod(transaction: TransactionResponse, period: Period): boolean {
   return day >= period.from && day <= period.to
 }
 
+/**
+ * El filtro del donut no cabe en un `TransactionFilter`: «Otras» son varias categorias a la vez, y
+ * aquel solo lleva una. Por eso esta comprobacion se queda aqui y no en `utils/transactionFilter`.
+ */
 function inSelection(
   transaction: TransactionResponse,
   selection: CategorySelection | null,
@@ -174,15 +212,24 @@ function inSelection(
   return transaction.type === 'EXPENSE' && selection.categories.includes(transaction.category)
 }
 
-function transactionsLink(period: Period, selection: CategorySelection | null): string {
+function transactionsLink(
+  period: Period,
+  selection: CategorySelection | null,
+  type: TransactionType | null,
+): string {
   const params = new URLSearchParams({ from: period.from, to: period.to })
+
+  if (type !== null) {
+    params.set('type', type)
+  }
 
   // Una sola categoria se puede pasar por la URL; «Otras» son varias y no tiene equivalente en
   // la pantalla de movimientos, asi que el enlace se queda solo con el rango.
   if (selection !== null && selection.categories.length === 1) {
     const [category] = selection.categories
-    if (category !== null && category !== undefined) {
-      params.set('category', category)
+    // La cadena vacia es «sin categoria», que la otra pantalla tambien entiende.
+    if (category !== undefined) {
+      params.set('category', category ?? '')
     }
   }
 

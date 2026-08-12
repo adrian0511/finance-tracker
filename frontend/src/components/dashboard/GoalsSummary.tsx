@@ -35,7 +35,7 @@ export function GoalsSummary() {
       actions={
         <Link
           to="/goals"
-          className="rounded text-sm font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          className="rounded text-sm font-medium text-tinta underline underline-offset-4 foco"
         >
           Ver metas
         </Link>
@@ -61,11 +61,11 @@ export function GoalsSummary() {
               <div className="flex items-baseline justify-between gap-4 text-sm">
                 <Link
                   to={`/goals/${goal.id}`}
-                  className="truncate rounded font-medium text-slate-900 underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-slate-900"
+                  className="truncate rounded font-medium text-tinta underline-offset-4 foco hover:underline"
                 >
                   {goal.name}
                 </Link>
-                <span className="whitespace-nowrap tabular-nums text-slate-600">
+                <span className="whitespace-nowrap cifra text-tinta-suave">
                   {formatMoney(goal.targetAmount)}
                 </span>
               </div>
@@ -79,16 +79,16 @@ export function GoalsSummary() {
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label={`Avance de ${goal.name}`}
-                  className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"
+                  className="h-2 flex-1 overflow-hidden rounded-full bg-superficie-alta"
                 >
                   <div
-                    className={`h-full rounded-full ${reached ? 'bg-emerald-600' : 'bg-slate-900'}`}
+                    // Cobalto mientras se avanza y laton al llegar: el laton es la meta en
+                    // toda la app, asi que alcanzarla es literalmente ponerse de ese color.
+                    className={`h-full rounded-full ${reached ? 'bg-laton' : 'bg-cobalto'}`}
                     style={{ width: `${percent}%` }}
                   />
                 </div>
-                <span className="w-10 text-right text-sm tabular-nums text-slate-600">
-                  {percent}%
-                </span>
+                <span className="w-10 text-right text-sm cifra text-tinta-suave">{percent}%</span>
               </div>
             </li>
           )
@@ -96,11 +96,11 @@ export function GoalsSummary() {
       </ul>
 
       {goals !== undefined && goals.length > MAX_GOALS && (
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-tinta-tenue">
           y {goals.length - MAX_GOALS} más.{' '}
           <Link
             to="/goals"
-            className="rounded font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            className="rounded font-medium text-tinta underline underline-offset-4 foco"
           >
             Verlas todas
           </Link>

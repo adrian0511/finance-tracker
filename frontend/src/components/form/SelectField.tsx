@@ -11,20 +11,20 @@ export function SelectField({ label, error, id, children, ...props }: SelectFiel
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="text-sm font-medium text-tinta-suave">
         {label}
       </label>
       <select
         id={id}
         aria-invalid={error !== undefined}
         aria-describedby={error !== undefined ? errorId : undefined}
-        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus-visible:border-slate-900 focus-visible:ring-2 focus-visible:ring-slate-900/20 aria-invalid:border-red-500"
+        className="rounded-md border border-borde-fuerte bg-superficie px-3 py-2 text-tinta foco aria-invalid:border-alerta aria-invalid:[--anillo:var(--alerta)]"
         {...props}
       >
         {children}
       </select>
       {error !== undefined && (
-        <p id={errorId} role="alert" className="text-sm text-red-600">
+        <p id={errorId} role="alert" className="text-sm text-alerta">
           {error}
         </p>
       )}

@@ -52,15 +52,15 @@ export default function AccountsPage() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-900">Cuentas</h1>
-      <p className="mt-2 text-slate-600">
+      <h1 className="text-3xl font-semibold tracking-tight text-tinta">Cuentas</h1>
+      <p className="mt-2 text-tinta-suave">
         Toda cuenta nueva empieza con saldo cero; el saldo lo mueven los movimientos.
       </p>
 
       <form
         onSubmit={onSubmit}
         noValidate
-        className="mt-6 flex flex-wrap items-start gap-3 rounded-lg border border-slate-200 bg-white p-4"
+        className="mt-6 flex flex-wrap items-start gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
       >
         <div className="min-w-56 flex-1">
           <TextField
@@ -74,23 +74,23 @@ export default function AccountsPage() {
         <button
           type="submit"
           disabled={createAccount.isPending}
-          className="mt-7 rounded-md bg-slate-900 px-4 py-2 font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-60"
+          className="mt-7 rounded-md bg-accion px-4 py-2 font-medium text-accion-tinta foco disabled:opacity-60"
         >
           {createAccount.isPending ? 'Creando…' : 'Crear'}
         </button>
       </form>
 
-      {isPending && <p className="mt-8 text-slate-600">Cargando cuentas…</p>}
+      {isPending && <p className="mt-8 text-tinta-suave">Cargando cuentas…</p>}
 
       {isError && (
-        <p role="alert" className="mt-8 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="mt-8 rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
           {getErrorMessage(error, 'No se han podido cargar las cuentas.')}
         </p>
       )}
 
       {accounts !== undefined &&
         (accounts.length === 0 ? (
-          <p className="mt-8 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+          <p className="mt-8 rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
             Todavía no tienes ninguna cuenta.
           </p>
         ) : (
@@ -98,17 +98,15 @@ export default function AccountsPage() {
             {accounts.map((account) => (
               <li
                 key={account.id}
-                className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
               >
-                <h2 className="font-medium text-slate-900">{account.name}</h2>
-                {/* tabular-nums para que las cifras no bailen de una tarjeta a otra */}
-                <p className="text-2xl tabular-nums text-slate-900">
-                  {formatMoney(account.balance)}
-                </p>
+                <h2 className="font-medium text-tinta">{account.name}</h2>
+                {/* Monoespaciada tabular: asi las cifras no bailan de una tarjeta a otra. */}
+                <p className="cifra text-2xl text-tinta">{formatMoney(account.balance)}</p>
                 <button
                   type="button"
                   onClick={() => setPendingDeletion(account)}
-                  className="self-start rounded text-sm text-red-700 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
+                  className="self-start rounded text-sm text-alerta underline underline-offset-4 foco"
                 >
                   Borrar
                 </button>
