@@ -239,8 +239,14 @@ El **filtro de `/transactions` va en la query string** (`?from=&to=&category=`) 
 local: así el enlace desde el gráfico mensual llega filtrado, se puede compartir y el botón de
 atrás lo deshace. Se aplica en el cliente sobre la lista completa porque **la API no ofrece
 movimientos por rango**; el día que exista ese endpoint, se sustituye el filtrado sin tocar la
-URL, que es la que manda. Mismo caso en la tabla del dashboard: crece con el histórico del
-usuario y acabará pidiendo paginación en el servidor.
+URL, que es la que manda.
+
+La **paginación también es del cliente** (`usePagination` + `components/ui/Pagination`), por lo
+mismo: `GET /api/transactions/users/{id}` devuelve el histórico entero de una vez y no acepta ni
+página ni rango. O sea que **no ahorra red, ahorra tabla** — la petición sigue trayéndolo todo.
+El día que el backend pagine, el hook se cambia por parámetros de la petición y las pantallas no
+se enteran. `usePagination` recibe una `resetKey` (la query string, el periodo + la categoría):
+sin ella, filtrar estando en la página 5 deja una tabla vacía que parece "no hay resultados".
 
 ## Comandos
 

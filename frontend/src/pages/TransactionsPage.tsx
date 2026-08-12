@@ -8,8 +8,10 @@ import { getErrorMessage } from '@/api/errors'
 import { SelectField } from '@/components/form/SelectField'
 import { TextField } from '@/components/form/TextField'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Pagination } from '@/components/ui/Pagination'
 import { TypeBadge } from '@/components/ui/TypeBadge'
 import { useAccounts } from '@/hooks/useAccounts'
+import { usePagination } from '@/hooks/usePagination'
 import {
   useCreateTransaction,
   useDeleteTransaction,
@@ -26,6 +28,8 @@ import { formatDate, formatDateTime, formatMoney } from '@/utils/format'
  * solo ensucia los informes. Y categoria no vacia, aunque el backend solo exija @NotNull, porque
  * es la clave por la que se agrupa el desglose por categorias.
  */
+const PAGE_SIZE = 20
+
 const transactionSchema = z.object({
   accountId: z.string().min(1, 'Elige una cuenta'),
   type: z.enum(['INCOME', 'EXPENSE']),
@@ -64,6 +68,8 @@ export default function TransactionsPage() {
   const hasAccounts = accounts !== undefined && accounts.length > 0
 
   const visible = (transactions ?? []).filter((transaction) => matches(transaction, filter))
+  // La query string es la clave de reinicio: al cambiar el filtro hay que volver a la pagina 1.
+  const pages = usePagination(visible, PAGE_SIZE, searchParams.toString())
 
   const onSubmit = handleSubmit((values) => {
     createTransaction.mutate(
@@ -210,7 +216,7 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((transaction) => (
+                {pages.items.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-600">
                       {formatDateTime(transaction.date)}
@@ -245,6 +251,18 @@ export default function TransactionsPage() {
             </table>
           </div>
         ))}
+
+      {visible.length > 0 && (
+        <Pagination
+          page={pages.page}
+          pageCount={pages.pageCount}
+          first={pages.first}
+          last={pages.last}
+          total={pages.total}
+          noun="movimientos"
+          onChange={pages.setPage}
+        />
+      )}
 
       <ConfirmDialog
         open={pendingDeletion !== null}

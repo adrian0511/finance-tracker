@@ -2,14 +2,17 @@ import { Link } from 'react-router-dom'
 
 import type { CategorySelection } from '@/components/charts/CategoryPieChart'
 import { Panel } from '@/components/dashboard/Panel'
+import { Pagination } from '@/components/ui/Pagination'
 import { TypeBadge } from '@/components/ui/TypeBadge'
 import { useAccounts } from '@/hooks/useAccounts'
+import { usePagination } from '@/hooks/usePagination'
 import { useTransactions } from '@/hooks/useTransactions'
 import type { TransactionResponse } from '@/types/transaction'
 import { formatDateTime, formatMoney } from '@/utils/format'
 import type { Period } from '@/utils/period'
 
-const MAX_ROWS = 8
+/** Pagina corta: es una tarjeta de resumen dentro de una pagina con cuatro graficos mas. */
+const PAGE_SIZE = 8
 
 interface RecentTransactionsProps {
   period: Period
@@ -36,6 +39,13 @@ export function RecentTransactions({
   const accountNames = new Map((accounts ?? []).map((account) => [account.id, account.name]))
   const matching = (transactions ?? []).filter(
     (transaction) => inPeriod(transaction, period) && inSelection(transaction, selection),
+  )
+  // Cambiar de periodo o de categoria devuelve a la pagina 1: son dos listas distintas, y la
+  // pagina 3 de la anterior no significa nada en la nueva.
+  const pages = usePagination(
+    matching,
+    PAGE_SIZE,
+    `${period.from}|${period.to}|${selection?.label}`,
   )
 
   return (
@@ -92,7 +102,7 @@ export function RecentTransactions({
             </tr>
           </thead>
           <tbody>
-            {matching.slice(0, MAX_ROWS).map((transaction) => (
+            {pages.items.map((transaction) => (
               <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
                 <td className="py-2 pr-4 whitespace-nowrap tabular-nums text-slate-600">
                   {formatDateTime(transaction.date)}
@@ -118,17 +128,26 @@ export function RecentTransactions({
         </table>
       </div>
 
-      {matching.length > MAX_ROWS && (
-        <p className="mt-3 text-sm text-slate-500">
-          {matching.length - MAX_ROWS} más en el periodo.{' '}
-          <Link
-            to={transactionsLink(period, selection)}
-            className="rounded font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          >
-            Verlos todos
-          </Link>
-        </p>
-      )}
+      <Pagination
+        page={pages.page}
+        pageCount={pages.pageCount}
+        first={pages.first}
+        last={pages.last}
+        total={pages.total}
+        noun="movimientos"
+        onChange={pages.setPage}
+      />
+
+      {/* El enlace se queda aunque ahora se pueda paginar aqui: la pantalla de movimientos deja
+          ademas borrar y dar de alta, que es a lo que se va cuando la lista es larga. */}
+      <p className="mt-2 text-sm">
+        <Link
+          to={transactionsLink(period, selection)}
+          className="rounded font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+        >
+          Abrir en Movimientos
+        </Link>
+      </p>
     </Panel>
   )
 }
