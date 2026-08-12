@@ -78,7 +78,7 @@ class ReportServiceImplRangeTest {
 
             service.getByCategory(USER_ID, from, to);
 
-            verify(repository).findByCategory(USER_ID, from.atStartOfDay(), to.atTime(LocalTime.MAX));
+            verify(repository).findExpensesByCategory(USER_ID, from.atStartOfDay(), to.atTime(LocalTime.MAX));
         }
 
         @Test
@@ -88,7 +88,7 @@ class ReportServiceImplRangeTest {
 
             service.getByCategory(USER_ID, from, null);
 
-            verify(repository).findByCategory(USER_ID, from.atStartOfDay(), DEFAULT_END);
+            verify(repository).findExpensesByCategory(USER_ID, from.atStartOfDay(), DEFAULT_END);
         }
 
         @Test
@@ -98,7 +98,7 @@ class ReportServiceImplRangeTest {
 
             service.getByCategory(USER_ID, null, to);
 
-            verify(repository).findByCategory(USER_ID,
+            verify(repository).findExpensesByCategory(USER_ID,
                     LocalDate.of(2025, 10, 30).atStartOfDay(),
                     to.atTime(LocalTime.MAX));
         }
@@ -110,7 +110,7 @@ class ReportServiceImplRangeTest {
 
             service.getByCategory(USER_ID, day, day);
 
-            verify(repository).findByCategory(USER_ID, day.atStartOfDay(), day.atTime(LocalTime.MAX));
+            verify(repository).findExpensesByCategory(USER_ID, day.atStartOfDay(), day.atTime(LocalTime.MAX));
         }
 
         @Test

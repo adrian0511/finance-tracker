@@ -119,7 +119,7 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    agrupar, ordenar y cortar son cosa de la query: traerse las filas para reducirlas en Java
    escala con el histórico del usuario, y la query no. En concreto:
    - Totales y desgloses: `totalIncomes/totalExpenses`, `countByUserAndDateBetween`,
-     `findByCategory`, `findExpensesByCategory` (ordenada por `SUM(t.amount) DESC`),
+     `findExpensesByCategory` (ordenada por `SUM(t.amount) DESC`),
      `findMonthlyNets`, `AccountRepository.totalBalance`.
    - Límites: `findRecentTransactions(userId, PageRequest.of(0, n))`, nunca
      `.sorted().limit(n)` sobre la lista entera.

@@ -90,20 +90,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                                    @Param("end") LocalDateTime end);
 
     @Query("""
-                SELECT new com.adrian.financetracker_monolith_api.dto.report.CategoryReportResponse(
-                    t.category,
-                    COALESCE(SUM(t.amount),0)
-                )
-                FROM Transaction t
-                WHERE t.account.user.id = :userId
-                AND t.date BETWEEN :start AND :end
-                GROUP BY t.category
-            """)
-    List<CategoryReportResponse> findByCategory(@Param("userId") UUID userId,
-                                                @Param("start") LocalDateTime start,
-                                                @Param("end") LocalDateTime end);
-
-    @Query("""
             SELECT new com.adrian.financetracker_monolith_api.dto.report.MonthlyReportResponse(
                         MONTH(t.date),
                         COALESCE(SUM(CASE WHEN t.type='INCOME' THEN t.amount ELSE 0 END),0),

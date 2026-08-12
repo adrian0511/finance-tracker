@@ -39,11 +39,18 @@ public class ReportServiceImpl implements ReportService {
         return new BalanceResponse(incomes, expenses, balance);
     }
 
+    /**
+     * Desglose de <strong>gasto</strong> por categoria, de mayor a menor. Usa
+     * {@code findExpensesByCategory} y no {@code findByCategory}: esta ultima agrupa ingresos y
+     * gastos en el mismo total, asi que una categoria con nomina y compras devolvia la resta de
+     * las dos como si fuera lo gastado. El informe se lee siempre como gasto (es lo que pinta el
+     * dashboard y lo que resume la IA), asi que la query tiene que filtrar por tipo.
+     */
     @Override
     public List<CategoryReportResponse> getByCategory(UUID userId, LocalDate from, LocalDate to) {
         DateRange range = resolveRange(from, to);
 
-        return repository.findByCategory(userId, range.start(), range.end());
+        return repository.findExpensesByCategory(userId, range.start(), range.end());
     }
 
     @Override
