@@ -185,19 +185,77 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    hay ningún id ajeno cuya propiedad validar. `AccountControllerTest` comprueba que dos usuarios
    distintos no se ven las cuentas. `GET /api/accounts/users/{id}` se queda para ADMIN.
 
-## Plan de trabajo activo
+## Estado del proyecto y qué viene después
 
-Sigue el orden de `finance-tracker-plan-de-mejoras.md` (raíz del repo, o pídemelo si no
-está). Los bugs P0 y la config de IA gratuita ya están hechos; lo siguiente es el feature de
-metas de ahorro y proyección (`SavingsGoal`, `/api/goals/*`) y después presupuestos por
-categoría. No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
+El plan de mejoras que guiaba esto (`finance-tracker-plan-de-mejoras.md`) está terminado y el
+archivo ya no está en el repo. Punto de partida de hoy:
 
-Tests actuales: `SavingsGoalServiceImplProjectionTest` y `ReportServiceImplRangeTest` (unitarios
-con Mockito y `Clock` fijo), `TransactionRepositoryAggregateTest` (`@DataJpaTest` contra el
-Postgres local) y `SpaForwardingControllerTest` (`@SpringBootTest` + MockMvc). La validación de
-ownership sigue sin cubrir: es lo que más lo pide. Ojo: **`spring-security-test` no está en el
-pom**, así que no hay `@WithMockUser`; para autenticar en un test hay que sacar un token real
-por `/api/auth/register` + `/api/auth/login`, como hace `SpaForwardingControllerTest`.
+**Backend.** Auth con JWT (`/api/auth/register|login`) y el resto de la API bajo `/api`:
+usuarios, cuentas, transacciones, cuatro informes (`/api/reports/balance|category|monthly|cashFlow`,
+con rango opcional que resuelve el servicio), metas de ahorro con proyección a tres escenarios
+(`/api/goals`, `/api/goals/{id}/projection`) y cuatro endpoints de IA
+(`/api/ai/analysis|report|categorize|chat`) contra un modelo `:free` de OpenRouter.
+
+**Frontend.** SPA de React/Vite que empaqueta el propio build de Maven y se sirve desde el jar:
+login y registro, dashboard con periodo compartido y cuatro gráficos, cuentas, movimientos con
+filtro por tipo y categoría y paginación, y metas con su pantalla de detalle. Sistema de tokens
+propio con tema claro/oscuro. Detalles en `frontend/CLAUDE.md`.
+
+**Lo siguiente: presupuestos por categoría** (`Budget`, `/api/budgets/*`), que era el punto que
+quedó fuera del plan. Un presupuesto es un tope mensual para una categoría; lo gastado no se
+guarda, se calcula agregando en SQL sobre `transaction` (invariante 5), igual que
+`findExpensesByCategory`.
+
+Dos huecos conocidos, por si se cruzan con lo que estés tocando:
+
+- **No hay `PUT`/`PATCH` en ninguna parte.** Ni movimientos, ni cuentas, ni metas: se crean y se
+  borran. Si añades la edición de transacciones, el invariante 1 dice lo que hay que respetar
+  (revertir el importe viejo y aplicar el nuevo sobre `Account.balance`).
+- **`SavingsGoal` no guarda lo ahorrado.** No tiene `currentAmount`: el progreso y los tres
+  escenarios se derivan del histórico de movimientos. No le añadas un campo acumulado sin
+  pensarlo, porque entonces habría dos fuentes de verdad para el mismo número.
+
+No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
+
+## Tests
+
+Nueve clases, **71 tests**, todos en verde:
+
+| Clase | Tests | Qué es |
+|---|---|---|
+| `SavingsGoalServiceImplProjectionTest` | 16 | unitario, Mockito + `Clock` fijo |
+| `AIControllerTest` | 14 | `@SpringBootTest` + MockMvc, `AiService` mockeado |
+| `ReportServiceImplRangeTest` | 10 | unitario, Mockito + `Clock` fijo |
+| `SpaForwardingControllerTest` | 9 | `@SpringBootTest` + MockMvc |
+| `TransactionRepositoryAggregateTest` | 8 | `@DataJpaTest` contra el Postgres local |
+| `TransactionControllerTest` | 6 | `@SpringBootTest` + MockMvc |
+| `AccountControllerTest` | 4 | `@SpringBootTest` + MockMvc |
+| `AuthControllerErrorsTest` | 3 | `@SpringBootTest` + MockMvc |
+| `FinancetrackerMonolithApiApplicationTests` | 1 | el `contextLoads` de siempre |
+
+**Todo lo que levanta contexto necesita Postgres levantado** — es decir, todo menos los dos
+unitarios de arriba.
+
+Ojo con estas cuatro cosas al escribir tests nuevos:
+
+- **`spring-security-test` no está en el pom**, así que no hay `@WithMockUser`: para autenticar hay
+  que sacar un token real por `/api/auth/register` + `/api/auth/login`.
+- **`@Transactional` en el test no vale para comprobar que algo quedó guardado.** Con una sola
+  transacción envolviendo todas las peticiones se lee el estado en memoria de esa transacción, que
+  diría lo mismo aunque nada se hubiera confirmado. Por eso `TransactionControllerTest` (que
+  comprueba el ajuste de saldo del invariante 1) y `AuthControllerErrorsTest` van sin él y limpian
+  a mano en `@AfterEach`, mientras que `AccountControllerTest` sí lo usa y no limpia nada.
+- **Al limpiar, de dentro afuera**: `transaction.account_id` es NOT NULL y no hay cascada, así que
+  borrar una cuenta antes que sus movimientos revienta contra la foreign key.
+- **Para mockear un bean del contexto va `@MockitoBean`, no `@MockBean`**: este proyecto es Spring
+  Boot 4 y el segundo ya no existe (deprecado en 3.4, retirado en 4.0). `AIControllerTest` sustituye
+  así el `AiService` de prompt-link, que es lo que le permite comprobar que las ramas de guardia
+  responden **sin** llamar al modelo — y de paso hace que la suite no dependa de la red ni de la
+  `API_KEY`.
+
+La cobertura de ownership vive en `TransactionControllerTest`: es la red que sujeta los invariantes
+3 y 14. Los dos casos de 403 se comprobaron quitando a mano los `@PreAuthorize` del controller, y
+fallan; si algún día pasan con las anotaciones quitadas, el test dejó de servir para nada.
 
 ## Qué NO hacer
 

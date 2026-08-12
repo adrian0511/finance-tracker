@@ -395,8 +395,24 @@ PATH). Dos consecuencias:
 - No metas el tema en Zustand ni en un contexto de React: se aplica antes del primer render, así
   que lo guarda el DOM.
 
-## Plan de trabajo activo
+## Estado del cliente y qué viene después
 
-Sigue el orden de `frontend-prompts.md` (raíz del repo): bloque 0 (rango de fechas +
-fallback de SPA en el backend) antes que nada, después scaffold con pnpm, auth, CRUD,
-metas de ahorro, y dashboard al final.
+El guion que traía esto hasta aquí (`frontend-prompts.md`) está terminado y el archivo ya no
+está en el repo. Lo que hay hoy: login y registro, cuentas, movimientos (alta, borrado, filtro
+por tipo y categoría, paginación), metas con su pantalla de detalle y proyección, dashboard con
+periodo compartido y cuatro gráficos, y el sistema de tokens con tema claro/oscuro. Las rutas
+están en la sección «Rutas».
+
+**Lo siguiente es presupuestos por categoría**, cuando exista `/api/budgets/*` en el backend —
+mira la sección equivalente del `CLAUDE.md` raíz, que manda sobre el orden. Aquí eso será una
+pantalla de presupuestos y, en el dashboard, lo gastado contra el tope.
+
+Dos cosas que conviene saber antes de tocar nada:
+
+- **No hay tests de frontend, ni runner instalado.** No hay vitest ni testing-library en el
+  `package.json`: lo que sujeta el cliente son `pnpm lint`, `pnpm palette` y el `tsc -b` que
+  lleva dentro `pnpm build`. Pásalos siempre. Si algún día se añaden tests, es una decisión de
+  dependencias y se pregunta antes.
+- **La interfaz no puede editar nada, porque la API tampoco.** No hay `PUT`/`PATCH` en el
+  backend para movimientos, cuentas ni metas. Si echas en falta un botón de «editar», no es que
+  se olvidara en la pantalla: falta el endpoint.
