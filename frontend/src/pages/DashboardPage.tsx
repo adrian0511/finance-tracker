@@ -4,12 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { CashFlowChart } from '@/components/charts/CashFlowChart'
 import { CategoryPieChart, type CategorySelection } from '@/components/charts/CategoryPieChart'
 import { MonthlyBarChart } from '@/components/charts/MonthlyBarChart'
+import { AIInsightPanel } from '@/components/dashboard/AIInsightPanel'
 import { BalanceSummary } from '@/components/dashboard/BalanceSummary'
 import { GoalsSummary } from '@/components/dashboard/GoalsSummary'
 import { Panel } from '@/components/dashboard/Panel'
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
+import { useAnalysis, useReport } from '@/hooks/useAI'
 import { useCashFlowReport, useCategoryReport, useMonthlyReport } from '@/hooks/useReports'
+import { useTransactions } from '@/hooks/useTransactions'
 import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
 
 /**
@@ -27,12 +30,17 @@ import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
  *   │ Movimientos del periodo          ← lo que filtra el donut      │
  *   ├───────────────────────────────────────────────────────────────┤
  *   │ Ingresos y gastos por mes                            [año ▾]  │
- *   └───────────────────────────────────────────────────────────────┘
+ *   ├───────────────────────────────┬───────────────────────────────┤
+ *   │ Análisis (IA)     [Generar]   │ Informe del mes (IA) [Generar]│
+ *   └───────────────────────────────┴───────────────────────────────┘
  *
  * Dos cosas del orden no son estéticas y no se pueden mover sueltas: el periodo va arriba del
  * todo porque manda sobre todo lo que hay debajo, y la tabla va inmediatamente bajo el donut
  * porque es lo que se filtra al pinchar una porcion — separarlos deja el filtro fuera de la
  * vista y la tabla cambia sin que se vea por que.
+ *
+ * Las dos de IA cierran la pagina y arrancan vacias: son lo unico que no se pide solo, porque
+ * detras hay un modelo con cuota y una espera de segundos. Tampoco dependen del periodo.
  */
 
 /** Años que ofrece el selector del grafico mensual, hacia atras desde el actual. */
@@ -57,6 +65,26 @@ export default function DashboardPage() {
   const cashFlow = useCashFlowReport(range, valid)
   const categories = useCategoryReport(range, valid)
   const monthly = useMonthlyReport(year)
+
+  // Las dos de IA no reciben el periodo: el backend mira el historico reciente y el mes en curso
+  // por su cuenta. Y no se piden solas — las dispara el boton de cada tarjeta.
+  const analysis = useAnalysis()
+  const report = useReport()
+
+  /**
+   * Sin un solo movimiento, los dos endpoints contestan su mensaje de guardia sin llamar al
+   * modelo. Es decir, no se gasta cuota — pero el viaje si se gasta, y aqui ya se sabe la
+   * respuesta: la lista esta en cache, la pide `RecentTransactions` en esta misma pagina.
+   *
+   * Solo se bloquea cuando consta que hay cero. Mientras la lista no ha llegado (`undefined`)
+   * el boton se queda activo: apagarlo por no saber todavia seria decirle al usuario que le
+   * falta algo cuando a lo mejor tiene cien movimientos.
+   */
+  const { data: transactions } = useTransactions()
+  const noTransactions = transactions !== undefined && transactions.length === 0
+  const needsTransactions = noTransactions
+    ? 'Necesitas al menos un movimiento registrado para que la IA tenga algo que leer.'
+    : undefined
 
   const changePeriod = (next: Period) => {
     setPeriod(next)
@@ -141,6 +169,41 @@ export default function DashboardPage() {
           }}
         />
       </Panel>
+
+      {/* Dos tarjetas y no una con pestañas: son dos textos distintos que se leen a la vez, y uno
+          puede estar generado y el otro no. Van al final porque son lo unico de la pagina que hay
+          que pedir a mano — arriba interrumpirian la lectura con dos huecos vacios. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AIInsightPanel
+          title="Análisis de tus movimientos"
+          hint="Lo que ve la IA en tus últimos movimientos. Tarda unos segundos y se pide a mano."
+          pendingLabel="Analizando tus finanzas…"
+          data={analysis.data}
+          isFetching={analysis.isFetching}
+          isError={analysis.isError}
+          error={analysis.error}
+          errorMessage="No se ha podido generar el análisis."
+          onGenerate={() => void analysis.refetch()}
+          disabledReason={needsTransactions}
+        />
+
+        <AIInsightPanel
+          title="Informe del mes"
+          hint="Resumen del mes en curso, con recomendaciones para el siguiente."
+          pendingLabel="Redactando el informe del mes…"
+          data={report.data}
+          isFetching={report.isFetching}
+          isError={report.isError}
+          error={report.error}
+          errorMessage="No se ha podido generar el informe."
+          onGenerate={() => void report.refetch()}
+          // Mismo bloqueo que el analisis, y solo ese. El informe ademas se queda vacio si no hay
+          // movimientos *de este mes*, pero eso no se decide aqui: el backend corta por
+          // YearMonth.now() del servidor, y replicar el corte con la fecha del navegador apagaria
+          // el boton a destiempo en el cambio de mes o con otro huso horario.
+          disabledReason={needsTransactions}
+        />
+      </div>
     </section>
   )
 }
