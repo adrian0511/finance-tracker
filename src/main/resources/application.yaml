@@ -9,13 +9,22 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
+    # Sin database-platform: Hibernate detecta el dialecto de PostgreSQL solo y avisaba por
+    # consola de que declararlo sobra (HHH90000025).
+    #
+    # show-sql apagado: imprimia las ~100 sentencias de cualquier flujo, y con format-sql cada una
+    # ocupaba varias lineas. Ese coste se paga en cada peticion y enterraba el log de la
+    # aplicacion. Para volver a verlo puntualmente basta con subir el nivel de
+    # org.hibernate.SQL a DEBUG, sin tocar esto.
+    show-sql: false
+    # El patron Open Session In View mantiene abierta la sesion de JPA (y con ella la conexion)
+    # durante el renderizado de la respuesta. Aqui no hace falta y sale caro: todos los servicios
+    # arman el DTO dentro de su @Transactional, asi que cuando el controller devuelve ya no queda
+    # nada perezoso que resolver. Apagarlo libera la conexion al salir del servicio en vez de al
+    # terminar la peticion, que es lo que decide cuantas peticiones simultaneas aguanta el pool.
+    open-in-view: false
     hibernate:
       ddl-auto: update
-    properties:
-      hibernate:
-        format-sql: true
 
 jwt:
   secret: QWRyaWFuMDMxMCBtaSBjbGF2ZSBlcyBtdXkgc2VndXJh

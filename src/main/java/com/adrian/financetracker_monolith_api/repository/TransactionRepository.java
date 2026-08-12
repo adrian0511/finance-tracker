@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -26,6 +27,23 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<Transaction> findByAccountIdOrderByDateDesc(UUID accountId);
 
     boolean existsByAccountId(UUID accountId);
+
+    /**
+     * El dueño de un movimiento, resuelto en SQL. Es lo que consulta {@code SecurityEvaluator}
+     * para decidir el 403.
+     *
+     * Existe porque el evaluador navegaba {@code transaction.getAccount().getUser()}, y eso son
+     * dos asociaciones LAZY resueltas <b>fuera</b> de toda transaccion: {@code @PreAuthorize} se
+     * evalua antes de que empiece la del servicio. Funcionaba solo porque Open Session In View
+     * mantenia la sesion abierta durante toda la peticion; al apagarlo saltaba
+     * LazyInitializationException y el borrado respondia 500.
+     *
+     * Devuelve Optional para poder distinguir «no existe» (404) de «es de otro» (403), que es la
+     * misma diferencia que hacia el codigo anterior. Y es una sola consulta con dos joins en vez
+     * de tres viajes a la base de datos.
+     */
+    @Query("SELECT t.account.user.id FROM Transaction t WHERE t.id = :id")
+    Optional<UUID> findOwnerId(@Param("id") UUID id);
 
     /**
      * Balance corriente del periodo: cada fila trae el acumulado hasta ese movimiento, calculado
