@@ -1,4 +1,5 @@
 export type * from './account'
+export type * from './ai'
 export type * from './auth'
 export type * from './common'
 export type * from './error'
