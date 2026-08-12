@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import AccountsPage from '@/pages/AccountsPage'
 import DashboardPage from '@/pages/DashboardPage'
+import GoalDetailPage from '@/pages/GoalDetailPage'
 import GoalsPage from '@/pages/GoalsPage'
 import LoginPage from '@/pages/LoginPage'
 import NotFoundPage from '@/pages/NotFoundPage'
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/goals/:id" element={<GoalDetailPage />} />
         </Route>
       </Route>
 
