@@ -97,6 +97,39 @@ Comprueba el controller antes de dar por hecha una ruta REST; varias no siguen e
 - **Crear o borrar un movimiento cambia el saldo de la cuenta**, así que las mutaciones
   invalidan `['transactions']` **y** `['accounts']`. Si se olvida la segunda, las tarjetas de
   cuentas se quedan con el saldo viejo.
+- **La proyección de metas (`GET /api/goals/{id}/projection`) tiene su propia semántica**, y
+  pintarla sin entenderla da un gráfico que miente. Lo que hay que saber (está todo cubierto por
+  `SavingsGoalServiceImplProjectionTest`, 16 casos):
+  - Los tres escenarios salen de **un solo ritmo**: optimista = `averageMonthlyNet +
+    monthlyNetStdDeviation`, realista = la media, pesimista = media − desviación. Con ahorro
+    constante la desviación es 0 y **las tres líneas se solapan**: no es un bug del gráfico.
+  - `monthlyBreakdown` son 24 puntos que empiezan en el **mes siguiente** al actual. El saldo de
+    hoy no viene como punto: hay que reconstruir el mes 0 restando un mes al primero y usando
+    `currentBalance`.
+  - Un **ETA a null** significa "a ese ritmo no se alcanza": ritmo ≤ 0, o más de 1200 meses. No
+    es lo mismo que "no se ve en el gráfico" — un ETA puede existir y caer fuera de los 24 meses
+    dibujados, y eso hay que decirlo aparte.
+  - La media son los **6 meses cerrados** anteriores; el mes en curso se excluye a propósito
+    (llevaría solo unos días y hundiría la media). Los meses sin movimientos cuentan como 0.
+  - `onTrackForTargetDate` tiene tres estados y los tres significan cosas distintas: `true` va a
+    tiempo, `false` no llega, **`null` es que la meta no tiene fecha límite**. No lo trates como
+    un booleano.
+- **Los cuatro informes de `/api/reports/*` no miden lo que parece por el nombre.** Ninguno lleva
+  el id del usuario: sale del principal.
+  - `from`/`to` son `yyyy-MM-dd`, **inclusivos los dos** (el día final llega hasta `LocalTime.MAX`)
+    y opcionales: si faltan, el backend aplica los últimos 6 meses hasta hoy. `from > to` es un
+    **400** (`InvalidDateRangeException`), así que el cliente no debería ni lanzar la petición
+    mientras el rango esté invertido.
+  - `GET /reports/cashFlow` devuelve **un punto por movimiento**, no por día, y el `balance` de
+    cada punto es el acumulado **dentro del rango, empezando en cero**. No es el saldo de las
+    cuentas: mide cuánto ha subido o bajado el dinero durante el periodo. Etiquetarlo como
+    "saldo" es la forma fácil de mentir con este endpoint.
+  - `GET /reports/category` es **solo gastos**, ordenado de mayor a menor por la query. Lo era a
+    medias: usaba `findByCategory`, que suma ingresos y gastos en el mismo total, así que una
+    categoría con nómina y compras devolvía la resta. Ahora usa `findExpensesByCategory`.
+    `category` puede venir **null** (es texto libre en la entidad).
+  - `GET /reports/monthly?year=` **no acepta rango**, solo el año, y devuelve **solo los meses con
+    movimientos**: los huecos se rellenan en el cliente o el eje miente sobre el hueco.
 - **No hay divisa en ninguna parte del backend.** Los importes son `BigDecimal` pelados. El euro
   es una decisión de presentación que vive en `utils/format.ts`, único sitio que hay que tocar si
   algún día la cuenta lleva su moneda.
@@ -136,7 +169,14 @@ backend; nunca escondas algo en el cliente asumiendo que eso lo protege.
 - Un hook de TanStack Query por recurso (`useAccounts`, `useTransactions`,
   `useSavingsGoals`, `useSavingsGoalProjection`), nunca fetch/axios directo en un
   componente de página.
-- Query keys consistentes: `['accounts']`, `['goals', goalId, 'projection']`.
+- Query keys consistentes: `['accounts']`, `['goals', goalId, 'projection']`,
+  `['reports', <informe>, from, to]`. **El rango va dentro de la clave**: así cambiar de periodo
+  es una consulta nueva y TanStack la lanza sola, sin que nadie tenga que invalidar nada a mano.
+  Los informes usan `placeholderData: keepPreviousData` para que el dashboard no parpadee ni pegue
+  un salto de altura al cambiar de periodo.
+- Crear o borrar un movimiento invalida también la rama `['reports']` entera, sin mirar el rango:
+  desde el hook no se sabe qué periodos hay cacheados y el movimiento nuevo entra en cualquiera
+  que lo contenga.
 - Formularios: react-hook-form + zod, replicando la validación del backend
   (`targetAmount > 0`, campos requeridos).
 - Los campos `BigDecimal` del backend llegan como `number`. Mostralos directo; **no
@@ -169,6 +209,38 @@ escribir CSS, definí un token system propio para esta app:
 No negociable sin importar la dirección visual: responsive hasta mobile, foco de
 teclado visible, respeta `prefers-reduced-motion`, gastá la audacia visual en un solo
 lugar y dejá todo lo demás disciplinado.
+
+## Gráficos y dashboard
+
+Los colores de los gráficos están en `components/charts/palette.ts` y **no se eligen a ojo**: la
+lista se pasó por un validador de contraste y de daltonismo contra el blanco de las tarjetas. Dos
+consecuencias que hay que respetar al tocarlos:
+
+- **El orden de `CATEGORY_COLORS` es el mecanismo de seguridad, no decoración.** Lo que se valida
+  son los pares adyacentes, que en el donut son justo las porciones vecinas. Reordenar o añadir un
+  séptimo tono invalida la comprobación: la cola larga se agrupa en «Otras» (gris, que no es un
+  color de la escala) y el donut nunca pasa de 6 porciones.
+- **Ingreso y gasto no son verde y rojo cualesquiera.** El par obvio (`emerald-700`/`rose-700`)
+  queda a ΔE 6.0 con deuteranopia, o sea indistinguible para quien no separa el rojo del verde.
+  Los de `palette.ts` se separan además en claridad, que es el canal que sobrevive al daltonismo.
+- Tres tonos de la escala no llegan a 3:1 contra el blanco, así que **ningún gráfico puede
+  apoyarse solo en el color**: leyenda con el importe escrito, o tabla al lado.
+
+Otras reglas que ya siguen los cuatro gráficos: rejilla continua y sin verticales (una punteada
+compite con las series de la proyección, que sí lo son a propósito), animación apagada con
+`useReducedMotion`, y la zona sensible al click es la columna entera del mes, no la barra.
+
+El **periodo del dashboard vive en `DashboardPage`**, no en `PeriodSelector`, y lo comparten todos
+los informes de la página menos el gráfico anual, que tiene su propio selector de año. No metas un
+selector de rango dentro de una tarjeta: dos gráficos contiguos con periodos distintos es
+imposible de detectar mirándolos.
+
+El **filtro de `/transactions` va en la query string** (`?from=&to=&category=`) y no en un estado
+local: así el enlace desde el gráfico mensual llega filtrado, se puede compartir y el botón de
+atrás lo deshace. Se aplica en el cliente sobre la lista completa porque **la API no ofrece
+movimientos por rango**; el día que exista ese endpoint, se sustituye el filtrado sin tocar la
+URL, que es la que manda. Mismo caso en la tabla del dashboard: crece con el histórico del
+usuario y acabará pidiendo paginación en el servidor.
 
 ## Comandos
 
@@ -210,7 +282,12 @@ PATH). Dos consecuencias:
   relativo, funciona igual en dev (proxy) y prod (mismo origen).
 - No asumas que las rutas profundas de React Router funcionan sin verificar que el
   fallback de SPA existe en el backend.
-- No sumes montos `BigDecimal`-como-`number` en el cliente para totales nuevos.
+- No sumes montos `BigDecimal`-como-`number` en el cliente para totales nuevos. La única
+  excepción es el avance de las metas en el dashboard, que suma los saldos de las cuentas: la
+  alternativa era pedir la proyección completa de cada meta (una petición por meta, con 24 puntos
+  de serie que allí no se pintan) para leer un solo número. Ojo con lo que significa ese número:
+  el ahorro es **común a todas las metas**, no hay una hucha por meta, así que dos metas de 1.000 €
+  con 1.000 € en las cuentas salen las dos al 100 %.
 - No uses el primer default visual que se te ocurra para el dashboard.
 
 ## Plan de trabajo activo

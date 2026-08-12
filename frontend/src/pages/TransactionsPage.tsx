@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { getErrorMessage } from '@/api/errors'
@@ -16,7 +16,7 @@ import {
   useTransactions,
 } from '@/hooks/useTransactions'
 import type { TransactionResponse } from '@/types/transaction'
-import { formatDateTime, formatMoney } from '@/utils/format'
+import { formatDate, formatDateTime, formatMoney } from '@/utils/format'
 
 /**
  * El importe se valida como texto y se convierte al enviar: un input numerico da siempre string, y
@@ -43,6 +43,11 @@ export default function TransactionsPage() {
   const createTransaction = useCreateTransaction()
   const deleteTransaction = useDeleteTransaction()
 
+  // El filtro vive en la URL y no en un estado local: asi el enlace desde el dashboard llega
+  // filtrado, el enlace se puede compartir y el boton de atras del navegador lo deshace.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filter = readFilter(searchParams)
+
   const [pendingDeletion, setPendingDeletion] = useState<TransactionResponse | null>(null)
 
   const {
@@ -57,6 +62,8 @@ export default function TransactionsPage() {
 
   const accountNames = new Map((accounts ?? []).map((account) => [account.id, account.name]))
   const hasAccounts = accounts !== undefined && accounts.length > 0
+
+  const visible = (transactions ?? []).filter((transaction) => matches(transaction, filter))
 
   const onSubmit = handleSubmit((values) => {
     createTransaction.mutate(
@@ -82,6 +89,22 @@ export default function TransactionsPage() {
         La fecha la pone el servidor al registrar el movimiento; no se puede dar de alta con fecha
         pasada.
       </p>
+
+      {hasFilter(filter) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-600">Filtrado por:</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+            {describeFilter(filter)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSearchParams({}, { replace: true })}
+            className="rounded font-medium text-slate-900 underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          >
+            Quitar el filtro
+          </button>
+        </div>
+      )}
 
       {!hasAccounts ? (
         <p className="mt-6 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
@@ -154,9 +177,11 @@ export default function TransactionsPage() {
       )}
 
       {transactions !== undefined &&
-        (transactions.length === 0 ? (
+        (visible.length === 0 ? (
           <p className="mt-8 rounded-md border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-            Todavía no hay movimientos.
+            {hasFilter(filter)
+              ? 'No hay movimientos que encajen con el filtro.'
+              : 'Todavía no hay movimientos.'}
           </p>
         ) : (
           // La tabla scrollea dentro de su caja: en movil no puede empujar la pagina a lo ancho.
@@ -185,7 +210,7 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
+                {visible.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3 whitespace-nowrap tabular-nums text-slate-600">
                       {formatDateTime(transaction.date)}
@@ -236,4 +261,62 @@ export default function TransactionsPage() {
       />
     </section>
   )
+}
+
+/**
+ * Filtro que llega por la query string desde el dashboard: un rango de fechas (el mes que se
+ * pincho en el grafico anual) y opcionalmente una categoria.
+ *
+ * Se aplica en el cliente sobre la lista que ya esta cargada porque la API no ofrece
+ * movimientos por rango; el dia que exista ese endpoint, esto se sustituye por parametros de la
+ * peticion sin tocar la URL, que es la que manda.
+ */
+interface TransactionFilter {
+  from: string | null
+  to: string | null
+  category: string | null
+}
+
+function readFilter(params: URLSearchParams): TransactionFilter {
+  return {
+    from: params.get('from'),
+    to: params.get('to'),
+    category: params.get('category'),
+  }
+}
+
+function hasFilter(filter: TransactionFilter): boolean {
+  return filter.from !== null || filter.to !== null || filter.category !== null
+}
+
+function matches(transaction: TransactionResponse, filter: TransactionFilter): boolean {
+  // La parte de fecha se compara como texto: las cadenas ISO se ordenan igual alfabeticamente
+  // que cronologicamente.
+  const day = transaction.date.slice(0, 10)
+
+  if (filter.from !== null && day < filter.from) {
+    return false
+  }
+  if (filter.to !== null && day > filter.to) {
+    return false
+  }
+  return filter.category === null || transaction.category === filter.category
+}
+
+function describeFilter(filter: TransactionFilter): string {
+  const parts: string[] = []
+
+  if (filter.from !== null && filter.to !== null) {
+    parts.push(`${formatDate(filter.from)} – ${formatDate(filter.to)}`)
+  } else if (filter.from !== null) {
+    parts.push(`desde el ${formatDate(filter.from)}`)
+  } else if (filter.to !== null) {
+    parts.push(`hasta el ${formatDate(filter.to)}`)
+  }
+
+  if (filter.category !== null) {
+    parts.push(filter.category)
+  }
+
+  return parts.join(' · ')
 }
