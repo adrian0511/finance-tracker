@@ -15,7 +15,9 @@ import com.adrian.financetracker_monolith_api.repository.UserRepository;
 import com.adrian.financetracker_monolith_api.service.interf.UserService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -46,6 +48,10 @@ public class UserServiceImpl implements UserService {
             throw new UserNotFoundException("User not found with id: " + id);
 
         repository.deleteById(id);
+
+        // Solo lo puede hacer un ADMIN y se lleva por delante a una persona entera: es de las
+        // pocas operaciones del backend que conviene poder rastrear despues.
+        log.info("Usuario {} borrado", id);
     }
 
     @Override
@@ -56,6 +62,10 @@ public class UserServiceImpl implements UserService {
                     u.setEmail(request.getEmail());
                     u.setName(request.getName());
                     u.setLastName(request.getLastName());
+
+                    // Que campos se tocaron, no con que valores: aqui van el email y el nombre
+                    // real de una persona, y no tienen por que acabar en un fichero de log.
+                    log.info("Usuario {} actualizado (email, nombre y apellidos)", id);
 
                     return repository.save(u);
                 })

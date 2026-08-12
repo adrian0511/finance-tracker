@@ -8,6 +8,7 @@ import com.adrian.financetracker_monolith_api.exception.report.InvalidDateRangeE
 import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.service.interf.ReportService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
@@ -77,9 +79,15 @@ public class ReportServiceImpl implements ReportService {
         LocalDate start = from != null ? from : end.minusMonths(DEFAULT_RANGE_MONTHS);
 
         if (start.isAfter(end)) {
+            log.debug("Rango invertido: from={} es posterior a to={}", start, end);
             throw new InvalidDateRangeException(
                     "La fecha inicial (%s) no puede ser posterior a la final (%s)".formatted(start, end));
         }
+
+        // Se registra lo que entro y lo que sale. Cuando el cliente no manda fechas, el rango lo
+        // decide este metodo (ultimos 6 meses) y el informe respondia sobre un periodo que no
+        // aparecia por ningun lado: "esos numeros no son los mios" suele ser esto.
+        log.debug("Rango del informe: pedido from={} to={}, aplicado {} .. {}", from, to, start, end);
 
         return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));
     }

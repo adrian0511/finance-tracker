@@ -25,3 +25,15 @@ ai:
   api-key: ${API_KEY}
   model: openai/gpt-oss-20b:free
 
+logging:
+  level:
+    # El root se queda en INFO: con DEBUG global, Spring, Hibernate y Tomcat entierran lo propio.
+    # Solo el paquete de la aplicacion baja a DEBUG, que es donde estan los importes, los saldos,
+    # los rangos de los informes y los tiempos del modelo.
+    com.adrian.financetracker_monolith_api: DEBUG
+  pattern:
+    # Al patron por defecto le falta lo unico que hace util un log de una API: que peticion es.
+    # %X{...} lee el MDC que rellena LoggingFilter, asi que las lineas sueltas de una peticion se
+    # pueden juntar aunque haya varias a la vez.
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{0} - %msg%n"
+

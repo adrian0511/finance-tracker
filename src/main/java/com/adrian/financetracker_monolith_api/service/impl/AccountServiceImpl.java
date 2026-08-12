@@ -25,7 +25,9 @@ import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.service.interf.AccountService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
@@ -48,7 +50,11 @@ public class AccountServiceImpl implements AccountService {
                 .balance(BigDecimal.ZERO)
                 .build();
 
-        return mapper.toResponse(repository.save(account));
+        Account saved = repository.save(account);
+
+        log.info("Cuenta {} creada para el usuario {}", saved.getId(), userId);
+
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -75,11 +81,15 @@ public class AccountServiceImpl implements AccountService {
 
         // Transaction.account_id es NOT NULL y no hay cascada: sin este control el borrado
         // reventaria contra la foreign key y el handler generico lo devolveria como un 500.
-        if (transactionRepository.existsByAccountId(id))
+        if (transactionRepository.existsByAccountId(id)) {
+            log.debug("No se puede borrar la cuenta {}: todavia tiene movimientos", id);
             throw new AccountHasTransactionsException(
                     "The account has transactions and cannot be deleted with id: " + id);
+        }
 
         repository.deleteById(id);
+
+        log.info("Cuenta {} borrada", id);
     }
 
     @Override
@@ -88,7 +98,13 @@ public class AccountServiceImpl implements AccountService {
         Account account = repository.findById(accountId)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found with id: " + accountId));
 
-        account.setBalance(account.getBalance().add(amount));
+        // Saldo antes y despues en la misma linea. Es lo unico que permite reconstruir despues
+        // como llego una cuenta al saldo que tiene, y sale barato porque solo se arma si el nivel
+        // DEBUG esta activo (logging parametrizado, sin concatenar).
+        BigDecimal previous = account.getBalance();
+        account.setBalance(previous.add(amount));
+
+        log.debug("Cuenta {}: saldo {} + {} = {}", accountId, previous, amount, account.getBalance());
 
         repository.save(account);
     }
@@ -101,10 +117,14 @@ public class AccountServiceImpl implements AccountService {
 
         BigDecimal currentBalance = account.getBalance();
 
-        if (currentBalance.compareTo(amount) < 0)
+        if (currentBalance.compareTo(amount) < 0) {
+            log.debug("Cuenta {}: saldo insuficiente, hay {} y se piden {}", accountId, currentBalance, amount);
             throw new InsufficientBalanceException("The balance is insufficient to perfom the extraction");
+        }
 
         account.setBalance(currentBalance.subtract(amount));
+
+        log.debug("Cuenta {}: saldo {} - {} = {}", accountId, currentBalance, amount, account.getBalance());
 
         repository.save(account);
     }

@@ -13,7 +13,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -46,10 +48,25 @@ public class JwtService {
                 .parseClaimsJws(jwt).getBody();
     }
 
+    /**
+     * Cualquier problema con el token acaba en false: caducado, firmado con otra clave, o
+     * directamente ilegible. Para quien llama da igual, pero para diagnosticar no: un token
+     * caducado es rutina y uno mal firmado no lo es, y sin el log los dos eran el mismo silencio.
+     *
+     * Se registra el tipo de excepcion y su mensaje, <b>nunca el token</b>: es una credencial en
+     * vigor y quien lea el log podria usarlo.
+     */
     public boolean validateToken(String jwt) {
         try {
-            return !extractExpiration(jwt).before(new Date(System.currentTimeMillis()));
+            boolean valid = !extractExpiration(jwt).before(new Date(System.currentTimeMillis()));
+
+            if (!valid) {
+                log.debug("Token caducado");
+            }
+
+            return valid;
         } catch (Exception e) {
+            log.debug("Token rechazado: {} - {}", e.getClass().getSimpleName(), e.getMessage());
             return false;
         }
     }

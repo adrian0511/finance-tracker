@@ -22,7 +22,9 @@ import com.adrian.financetracker_monolith_api.service.interf.TransactionService;
 import com.adrian.financetracker_monolith_api.util.Type;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
@@ -47,13 +49,22 @@ public class TransactionServiceImpl implements TransactionService {
                 .type(request.getType())
                 .build();
 
+        // El importe va en DEBUG y no en el INFO de abajo: es un dato financiero y no tiene por
+        // que quedar registrado salvo que alguien este diagnosticando algo.
+        log.debug("Registrando {} de {} en la cuenta {} (categoria: {})", request.getType(),
+                request.getAmount(), request.getAccountId(), request.getCategory());
+
         if (transaction.getType().equals(Type.INCOME)) {
             accountService.increaseBalance(transaction.getAmount(), request.getAccountId());
         } else {
             accountService.decreaseBalance(transaction.getAmount(), request.getAccountId());
         }
 
-        return mapper.toResponse(repository.save(transaction));
+        Transaction saved = repository.save(transaction);
+
+        log.info("Movimiento {} creado en la cuenta {}", saved.getId(), account.getId());
+
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -88,6 +99,12 @@ public class TransactionServiceImpl implements TransactionService {
 
         UUID accountId = transaction.getAccount().getId();
 
+        // Este es el log que de verdad hacia falta: el borrado revierte el efecto sobre el saldo
+        // (invariante 1), y esa reversion era invisible. Si un saldo acaba descuadrado, esta
+        // linea es la que dice si el ajuste llego a ejecutarse y en que sentido.
+        log.debug("Borrando el movimiento {}: se revierte {} de {} sobre la cuenta {}", id,
+                transaction.getType(), transaction.getAmount(), accountId);
+
         if (transaction.getType().equals(Type.INCOME)) {
             accountService.decreaseBalance(transaction.getAmount(), accountId);
         } else {
@@ -95,6 +112,8 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         repository.deleteById(id);
+
+        log.info("Movimiento {} borrado de la cuenta {}", id, accountId);
     }
 
 }

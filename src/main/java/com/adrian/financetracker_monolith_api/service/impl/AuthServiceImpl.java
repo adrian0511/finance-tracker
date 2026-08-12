@@ -50,7 +50,14 @@ public class AuthServiceImpl implements AuthService {
                 .username(request.getUsername())
                 .build();
 
-        return mapper.toResponse(repository.save(user));
+        User saved = repository.save(user);
+
+        // El username si, la contrasena y el email no. Aunque el username tampoco es inocente:
+        // sale del propio usuario, asi que va tal cual y nunca concatenado, que es lo que evita
+        // que alguien se registre con un nombre que finja lineas de log.
+        log.info("Usuario registrado: {} ({})", saved.getUsername(), saved.getId());
+
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -66,12 +73,18 @@ public class AuthServiceImpl implements AuthService {
             // la ha convertido en este mismo BadCredentialsException. Lo que no se caza son los
             // fallos de infraestructura (InternalAuthenticationServiceException), que tienen que
             // seguir siendo un 500 y no un "credenciales invalidas" que no ayuda a nadie.
-            log.debug("Login fallido para el usuario {}: {}", request.getUsername(), exception.getMessage());
+            // WARN y no DEBUG: los logins fallidos son la señal barata de un ataque por fuerza
+            // bruta, y en DEBUG no se verian en produccion, que es justo donde harian falta.
+            log.warn("Login fallido para el usuario {}: {}", request.getUsername(), exception.getMessage());
             throw new InvalidCredentialsException(INVALID_CREDENTIALS);
         }
 
         User user = repository.findByUsername(request.getUsername()).get();
         String token = jwtService.generateToken(request.getUsername(), generateClaims(user));
+
+        // El token no se registra jamas: es una credencial en vigor durante 30 minutos y quien
+        // leyera el log podria suplantar a este usuario sin saber su contrasena.
+        log.info("Login correcto: {} ({})", user.getUsername(), user.getId());
 
         return new AuthResponse(token);
     }

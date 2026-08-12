@@ -34,7 +34,9 @@ import com.adrian.financetracker_monolith_api.repository.UserRepository;
 import com.adrian.financetracker_monolith_api.service.interf.SavingsGoalService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SavingsGoalServiceImpl implements SavingsGoalService {
@@ -77,7 +79,12 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
                 .createdAt(LocalDateTime.now(clock))
                 .build();
 
-        return mapper.toResponse(repository.save(goal));
+        SavingsGoal saved = repository.save(goal);
+
+        log.info("Meta {} creada para el usuario {}", saved.getId(), userId);
+        log.debug("Meta {}: objetivo {} para el {}", saved.getId(), saved.getTargetAmount(), saved.getTargetDate());
+
+        return mapper.toResponse(saved);
     }
 
     @Override
@@ -97,6 +104,8 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
             throw new SavingsGoalNotFoundException("Savings goal not found with id: " + id);
 
         repository.deleteById(id);
+
+        log.info("Meta {} borrada por el usuario {}", id, userId);
     }
 
     @Override
@@ -118,6 +127,12 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
 
         BigDecimal optimisticRate = average.add(deviation);
         BigDecimal pessimisticRate = average.subtract(deviation);
+
+        // Las cuatro cifras de las que sale todo lo demas. Una proyeccion rara casi siempre es un
+        // historico raro (un mes sin movimientos hunde la media), y sin esto habria que reconstruir
+        // a mano de donde salieron los tres escenarios.
+        log.debug("Proyeccion de la meta {}: saldo={}, falta={}, media mensual={}, desviacion={} ({} meses de historico)",
+                goalId, currentBalance, remaining, average, deviation, monthlyNets.size());
 
         YearMonth realisticEta = eta(remaining, average);
 
