@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -61,7 +62,18 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <Outlet />
+        {/* Suspense propio, dentro del layout: las paginas se cargan por separado, y con el unico
+            de App el fallback sustituiria tambien esta cabecera. Cambiar de pestaña haria
+            desaparecer la navegacion justo mientras se navega. */}
+        <Suspense
+          fallback={
+            <p role="status" className="py-16 text-center text-sm text-tinta-tenue">
+              Cargando…
+            </p>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   )

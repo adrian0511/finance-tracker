@@ -14,6 +14,17 @@ const queryClient = new QueryClient({
       // Un 401 ya lo resuelve el interceptor deslogueando, y un 403 no se arregla repitiendo
       // la peticion: reintentar solo tiene sentido para fallos de red o 5xx.
       retry: (failureCount, error) => failureCount < 2 && !isClientError(error),
+
+      /**
+       * Por defecto TanStack considera todo obsoleto nada mas llegar, asi que cada vuelta al
+       * resumen y cada vez que la ventana recupera el foco relanzaba las cuatro consultas de
+       * informes. Con 30 segundos, ir a Movimientos y volver ya no cuesta cuatro peticiones.
+       *
+       * No introduce datos rancios donde importa: lo que el propio usuario cambia (crear o
+       * borrar un movimiento, una cuenta, una meta) lo invalidan las mutaciones a mano, y eso
+       * manda sobre el staleTime. Esto solo cubre el caso de volver a mirar lo mismo.
+       */
+      staleTime: 30_000,
     },
   },
 })
