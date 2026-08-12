@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/routing/ProtectedRoute'
 import AccountsPage from '@/pages/AccountsPage'
+import ChatPage from '@/pages/ChatPage'
 import DashboardPage from '@/pages/DashboardPage'
 import GoalDetailPage from '@/pages/GoalDetailPage'
 import GoalsPage from '@/pages/GoalsPage'
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/transactions" element={<TransactionsPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/goals/:id" element={<GoalDetailPage />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>
 

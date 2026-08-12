@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/accounts', label: 'Cuentas' },
   { to: '/transactions', label: 'Movimientos' },
   { to: '/goals', label: 'Metas' },
+  { to: '/chat', label: 'Asistente' },
 ] as const
 
 /** Cabecera comun de la zona privada. */
