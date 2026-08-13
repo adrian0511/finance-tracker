@@ -18,7 +18,7 @@ const MAX_GOALS = 4
  * correcto segun el modelo — por eso el saldo se dice una vez arriba, en vez de repetirlo dentro
  * de cada barra como si fuera de esa meta.
  */
-export function GoalsSummary() {
+export function GoalsSummary({ contentHeight }: { contentHeight?: number }) {
   const { data: goals, isPending, isFetching, isError, error } = useSavingsGoals()
   const { data: accounts, isPending: accountsPending } = useAccounts()
 
@@ -47,6 +47,7 @@ export function GoalsSummary() {
       errorMessage="No se han podido cargar las metas."
       isEmpty={goals !== undefined && goals.length === 0}
       emptyMessage="Todavía no tienes ninguna meta."
+      contentHeight={contentHeight}
     >
       <ul className="flex flex-col gap-4">
         {(goals ?? []).slice(0, MAX_GOALS).map((goal) => {

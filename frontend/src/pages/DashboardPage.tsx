@@ -46,6 +46,21 @@ import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
 /** Años que ofrece el selector del grafico mensual, hacia atras desde el actual. */
 const YEARS_BACK = 5
 
+/**
+ * Alto que se le reserva al contenido de cada panel mientras carga, para que la pagina no pegue
+ * un salto al llegar los datos (ver `Panel.contentHeight`).
+ *
+ * Los tres primeros son el `height` que ya declara el `ResponsiveContainer` de cada grafico, asi
+ * que no son estimaciones: si se cambia el alto de un grafico, hay que cambiarlo aqui tambien.
+ * `metas` acompaña al donut porque comparten fila y la fila la marca el mas alto de los dos.
+ */
+const ALTO = {
+  flujo: 280,
+  categorias: 240,
+  metas: 240,
+  mensual: 300,
+} as const
+
 export default function DashboardPage() {
   const navigate = useNavigate()
 
@@ -117,6 +132,7 @@ export default function DashboardPage() {
         errorMessage="No se ha podido cargar el flujo de caja."
         isEmpty={cashFlow.data?.length === 0}
         emptyMessage="No hay movimientos en este periodo."
+        contentHeight={ALTO.flujo}
       >
         <CashFlowChart data={cashFlow.data ?? []} />
       </Panel>
@@ -132,6 +148,7 @@ export default function DashboardPage() {
           errorMessage="No se ha podido cargar el desglose por categoría."
           isEmpty={categories.data?.length === 0}
           emptyMessage="No hay gastos en este periodo."
+          contentHeight={ALTO.categorias}
         >
           <CategoryPieChart
             data={categories.data ?? []}
@@ -140,7 +157,7 @@ export default function DashboardPage() {
           />
         </Panel>
 
-        <GoalsSummary />
+        <GoalsSummary contentHeight={ALTO.metas} />
       </div>
 
       <RecentTransactions
@@ -160,6 +177,7 @@ export default function DashboardPage() {
         errorMessage="No se ha podido cargar el resumen mensual."
         isEmpty={monthly.data?.length === 0}
         emptyMessage={`No hay movimientos en ${year}.`}
+        contentHeight={ALTO.mensual}
       >
         <MonthlyBarChart
           data={monthly.data ?? []}

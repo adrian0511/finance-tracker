@@ -1,8 +1,24 @@
+import { lazy, Suspense } from 'react'
+
 import { AI_RETRY_LATER, getErrorMessage, isTemporaryAiError } from '@/api/errors'
-import { AIMarkdown } from '@/components/ui/AIMarkdown'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { AIResponse } from '@/types/ai'
 import { formatDateTime } from '@/utils/format'
+
+/**
+ * El renderizador de Markdown son 46 kB (react-markdown + remark-gfm) que el dashboard se bajaba
+ * en cada carga aunque las dos tarjetas arrancan vacias: hasta que alguien pulsa «Generar» no hay
+ * ni una linea que renderizar.
+ *
+ * En diferido no se paga hasta que hay texto — y para que ni siquiera entonces se note, el click
+ * en «Generar» dispara la descarga (ver `warmMarkdown`). Mientras el modelo tarda sus segundos en
+ * contestar, el trozo ya ha llegado, asi que el `fallback` de abajo casi nunca llega a verse.
+ */
+const AIMarkdown = lazy(() =>
+  import('@/components/ui/AIMarkdown').then((module) => ({ default: module.AIMarkdown })),
+)
+
+const warmMarkdown = () => void import('@/components/ui/AIMarkdown')
 
 interface AIInsightPanelProps {
   title: string
@@ -62,7 +78,10 @@ export function AIInsightPanel({
             unica forma de que no se encadenen dos peticiones a un modelo con cuota. */}
         <button
           type="button"
-          onClick={onGenerate}
+          onClick={() => {
+            warmMarkdown()
+            onGenerate()
+          }}
           disabled={isFetching || blocked}
           className="h-9 shrink-0 rounded-md bg-accion px-3 text-sm font-medium text-accion-tinta foco disabled:opacity-60"
         >
@@ -101,7 +120,9 @@ export function AIInsightPanel({
           {/* El prompt pide secciones numeradas, no Markdown, pero el modelo lo escribe igual:
               sin renderizarlo, el informe se lee con los `**` a la vista. */}
           <div className="mt-4 text-sm leading-relaxed text-tinta">
-            <AIMarkdown>{data.response}</AIMarkdown>
+            <Suspense fallback={<p className="text-sm text-tinta-tenue">Dando formato…</p>}>
+              <AIMarkdown>{data.response}</AIMarkdown>
+            </Suspense>
           </div>
           <p className="mt-3 text-xs text-tinta-tenue">
             {/* Cuando se genero, porque el texto no se recalcula solo: si se registran

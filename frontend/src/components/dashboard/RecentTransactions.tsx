@@ -18,6 +18,19 @@ import { TYPE_LABELS } from '@/utils/transactionFilter'
 /** Pagina corta: es una tarjeta de resumen dentro de una pagina con cuatro graficos mas. */
 const PAGE_SIZE = 8
 
+/**
+ * Alto reservado para la tabla mientras carga (ver `Panel.contentHeight`). Este panel era el que
+ * mas movia la pagina: pasaba de una linea de «Cargando…» a una tabla de ocho filas con su
+ * paginador, y empujaba hacia abajo todo lo que tiene debajo.
+ *
+ * A diferencia de los graficos, aqui no hay ningun alto declarado del que salga el numero: se
+ * calcula con lo que mide una fila (`py-2` + una linea de `text-sm`) por las filas de una pagina,
+ * mas la cabecera, el paginador y el enlace. Comprobado midiendo el panel ya renderizado.
+ */
+const ROW_HEIGHT = 37
+const TABLE_CHROME = 70
+const CONTENT_HEIGHT = ROW_HEIGHT * (PAGE_SIZE + 1) + TABLE_CHROME
+
 interface RecentTransactionsProps {
   period: Period
   selection: CategorySelection | null
@@ -102,6 +115,7 @@ export function RecentTransactions({
       errorMessage="No se han podido cargar los movimientos."
       isEmpty={matching.length === 0}
       emptyMessage={emptyMessage(selection, effectiveType)}
+      contentHeight={CONTENT_HEIGHT}
     >
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">

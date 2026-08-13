@@ -21,6 +21,15 @@ interface PanelProps {
   errorMessage: string
   isEmpty?: boolean
   emptyMessage?: string
+  /**
+   * Alto en px que ocupa el contenido cuando ya hay datos, para reservarlo desde el primer
+   * render. Sin esto el panel mide dos lineas mientras carga y varios cientos de px al llegar la
+   * respuesta, y todo lo que tiene debajo pega un salto: era el CLS de 0,142 del dashboard.
+   *
+   * Es un minimo, no un alto fijo: si el contenido crece por encima, empuja igual. Lo que evita
+   * es el salto de "cargando" a "con datos", que es el que se paga siempre.
+   */
+  contentHeight?: number
   children: ReactNode
 }
 
@@ -43,6 +52,7 @@ export function Panel({
   errorMessage,
   isEmpty = false,
   emptyMessage = 'No hay datos en este periodo.',
+  contentHeight,
   children,
 }: PanelProps) {
   return (
@@ -57,21 +67,23 @@ export function Panel({
 
       {toolbar !== undefined && <div className="mt-3">{toolbar}</div>}
 
-      {isPending ? (
-        <p className="mt-6 text-sm text-tinta-tenue">Cargando…</p>
-      ) : isError ? (
-        <p role="alert" className="mt-4 rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
-          {getErrorMessage(error, errorMessage)}
-        </p>
-      ) : isEmpty ? (
-        <p className="mt-6 rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
-          {emptyMessage}
-        </p>
-      ) : (
-        <div className={`mt-4 ${isFetching ? 'opacity-60 transition-opacity' : ''}`}>
-          {children}
-        </div>
-      )}
+      {/* El margen y el alto reservado van aqui y no en cada rama: los cuatro estados tienen que
+          ocupar lo mismo, que es justo lo que impide el salto. */}
+      <div className="mt-4" style={contentHeight === undefined ? undefined : { minHeight: contentHeight }}>
+        {isPending ? (
+          <p className="text-sm text-tinta-tenue">Cargando…</p>
+        ) : isError ? (
+          <p role="alert" className="rounded-md bg-alerta-tenue px-3 py-2 text-sm text-alerta">
+            {getErrorMessage(error, errorMessage)}
+          </p>
+        ) : isEmpty ? (
+          <p className="rounded-md border border-dashed border-borde-fuerte px-4 py-8 text-center text-sm text-tinta-tenue">
+            {emptyMessage}
+          </p>
+        ) : (
+          <div className={isFetching ? 'opacity-60 transition-opacity' : ''}>{children}</div>
+        )}
+      </div>
     </section>
   )
 }
