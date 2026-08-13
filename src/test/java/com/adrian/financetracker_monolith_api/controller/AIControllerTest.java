@@ -1,6 +1,7 @@
 package com.adrian.financetracker_monolith_api.controller;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -33,6 +34,7 @@ import com.adrian.financetracker_monolith_api.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 
 import io.github.adrian0511.prompt_link.dto.AiResponse;
+import io.github.adrian0511.prompt_link.exceptions.AiClientException;
 import io.github.adrian0511.prompt_link.service.AiService;
 
 /**
@@ -285,6 +287,89 @@ class AIControllerTest {
                                     """))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.response").value("Empieza por un fondo de emergencia."));
+        }
+    }
+
+    /**
+     * Que sale por la API cuando la que falla es la IA. Es la parte que no estaba cubierta y por
+     * donde se colo un fallo real: el handler hacia {@code HttpStatus.valueOf} del codigo de la
+     * libreria, que es <b>negativo</b> cuando no hubo respuesta HTTP, reventaba dentro del propio
+     * handler y la peticion acababa respondiendo <b>200</b> a un error.
+     *
+     * <p>Los cuatro casos se comprueban por el chat, que es el endpoint que menos preparacion
+     * necesita: lo que se prueba es el handler, y es el mismo para los cuatro.
+     */
+    @Nested
+    @DisplayName("cuando la IA falla")
+    class WhenTheModelFails {
+
+        @Test
+        @DisplayName("una respuesta vacia del modelo es 503, no 200")
+        void anEmptyAnswerIsUnavailable() throws Exception {
+            // INVALID_RESPONSE (-2), que es exactamente el caso que se vio en produccion.
+            whenTheModelFailsWith(new AiClientException(
+                    "The AI API returned a choice with no content", -2, null));
+
+            failingChat()
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.status").value(503));
+        }
+
+        @Test
+        @DisplayName("un fallo de red es 503")
+        void aNetworkFailureIsUnavailable() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Read timed out", -1, null));
+
+            failingChat().andExpect(status().isServiceUnavailable());
+        }
+
+        /**
+         * El mas importante de los cuatro: un 401 de OpenRouter es <b>nuestra</b> API key, no la
+         * sesion del usuario. Si saliera como 401, el cliente lo leeria como "se acabo la sesion",
+         * le borraria el token y lo mandaria al login por un problema de configuracion del
+         * servidor. Por lo mismo un 402 (sin credito) no puede salir como 402.
+         */
+        @Test
+        @DisplayName("un 401 de OpenRouter no se propaga: seria deslogear al usuario")
+        void anUpstreamUnauthorizedDoesNotLogTheUserOut() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Unauthorized", 401, "{\"error\":\"no key\"}"));
+
+            failingChat().andExpect(status().isServiceUnavailable());
+        }
+
+        @Test
+        @DisplayName("un 429 se mantiene: significa lo mismo de los dos lados")
+        void aRateLimitStaysARateLimit() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Rate limited", 429, null));
+
+            failingChat()
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(jsonPath("$.status").value(429));
+        }
+
+        /** Ni el mensaje de la libreria ni el cuerpo de OpenRouter llegan al cliente. */
+        @Test
+        @DisplayName("el detalle del fallo se queda en el log, no en la respuesta")
+        void theDetailStaysInTheLog() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Unauthorized", 401, "{\"key\":\"sk-or-secreta\"}"));
+
+            failingChat()
+                    .andExpect(jsonPath("$.message").value(containsString("no esta disponible")))
+                    .andExpect(jsonPath("$.message").value(not(containsString("Unauthorized"))))
+                    .andExpect(jsonPath("$.message").value(not(containsString("sk-or-secreta"))));
+        }
+
+        private void whenTheModelFailsWith(RuntimeException failure) {
+            when(aiService.generate(anyString(), anyString())).thenThrow(failure);
+        }
+
+        private ResultActions failingChat() throws Exception {
+            return mvc.perform(post("/api/ai/chat")
+                    .header("Authorization", "Bearer " + registerAndLogin())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""
+                            {"message":"Como ahorro mas?"}
+                            """));
         }
     }
 

@@ -43,6 +43,14 @@ jwt:
 ai:
   api-key: ${API_KEY}
   model: openai/gpt-oss-20b:free
+  # Los dos son los valores por defecto de la libreria, escritos aqui a proposito: son limites que
+  # deciden cuanto puede tardar una peticion de la aplicacion, y eso no deberia cambiar solo porque
+  # se actualice una dependencia.
+  connect-timeout: 10s
+  # OJO: es un limite de INACTIVIDAD, no de duracion. No acota lo que puede tardar una llamada,
+  # porque OpenRouter va mandando keep-alive mientras el modelo genera y la conexion nunca se queda
+  # quieta. El tope total esta en AIServiceImpl.TOTAL_TIMEOUT; este solo caza al que enmudece.
+  read-timeout: 60s
 
 logging:
   level:

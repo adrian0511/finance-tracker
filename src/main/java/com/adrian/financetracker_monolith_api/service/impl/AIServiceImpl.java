@@ -3,10 +3,12 @@ package com.adrian.financetracker_monolith_api.service.impl;
 
 import com.adrian.financetracker_monolith_api.dto.ai.AIResponse;
 import com.adrian.financetracker_monolith_api.entity.Transaction;
+import com.adrian.financetracker_monolith_api.exception.ai.AiTimeoutException;
 import com.adrian.financetracker_monolith_api.repository.TransactionRepository;
 import com.adrian.financetracker_monolith_api.service.interf.AIService;
 import com.adrian.financetracker_monolith_api.util.Type;
 import io.github.adrian0511.prompt_link.service.AiService;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -14,12 +16,19 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,8 +49,38 @@ public class AIServiceImpl implements AIService {
     /** Movimientos que se le pasan al modelo en el analisis. Es el LIMIT de la query. */
     private static final int ANALYSIS_SAMPLE_SIZE = 50;
 
+    /**
+     * Tope <b>total</b> de una llamada al modelo, del que no hay forma de pasar.
+     *
+     * Los dos timeouts de la libreria no lo cubren: {@code ai.connect-timeout} mide abrir la
+     * conexion y {@code ai.read-timeout} mide <b>inactividad</b>, no duracion. Y OpenRouter manda
+     * keep-alive mientras el modelo genera, asi que la conexion nunca se queda quieta y el limite
+     * de inactividad no salta por mucho que tarde. Medido en esta aplicacion: una llamada de 268
+     * segundos con el read-timeout en 60, que acabo con el usuario mirando "Generando..." cuatro
+     * minutos y medio.
+     *
+     * 90 segundos es holgado para un modelo gratuito con cola (los buenos van entre 5 y 30) y a la
+     * vez es una espera que todavia se puede sostener mirando una pantalla.
+     */
+    private static final Duration TOTAL_TIMEOUT = Duration.ofSeconds(90);
+
     private final AiService aiService;
     private final TransactionRepository repository;
+
+    /**
+     * La llamada al modelo se lanza en un hilo aparte para poder dejar de esperarla.
+     *
+     * Hilos virtuales y no un pool: un hilo del que se deja de esperar sigue vivo hasta que la
+     * libreria corte por su cuenta, y con un pool de tamaño fijo esos abandonados se comen los
+     * huecos y acaban bloqueando llamadas nuevas que no tenian nada que ver. Uno virtual por
+     * llamada no tiene ese limite y lo que cuesta dejarlo colgado es despreciable.
+     */
+    private final ExecutorService modelCalls = Executors.newVirtualThreadPerTaskExecutor();
+
+    @PreDestroy
+    void shutdown() {
+        modelCalls.shutdownNow();
+    }
 
     @Override
     public AIResponse generateAnalysis(UUID userId) {
@@ -232,7 +271,31 @@ public class AIServiceImpl implements AIService {
 
         log.debug("Llamando al modelo para {} ({} caracteres de prompt de usuario)", kind, userPrompt.length());
 
-        String content = aiService.generate(systemPrompt, userPrompt).getContent();
+        Future<String> call = modelCalls.submit(
+                () -> aiService.generate(systemPrompt, userPrompt).getContent());
+
+        String content;
+        try {
+            content = call.get(TOTAL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            // Se deja de esperar, pero la llamada de debajo no se puede cortar de verdad: una
+            // lectura de socket bloqueada no atiende a la interrupcion, asi que el hilo seguira
+            // ahi hasta que responda o salte el read-timeout. Lo que si queda acotado es lo que
+            // espera el usuario, que es de lo que trata esto.
+            call.cancel(true);
+            log.warn("El modelo no respondio a {} en {} s; se deja de esperar", kind, TOTAL_TIMEOUT.toSeconds());
+            throw new AiTimeoutException("El modelo no respondio en " + TOTAL_TIMEOUT.toSeconds() + " segundos");
+        } catch (ExecutionException e) {
+            // Lo que falla dentro es casi siempre una AiClientException, que tiene su propio
+            // handler y sabe distinguir la cuota de la clave. Se relanza tal cual para no
+            // enterrarla dentro de una excepcion de concurrencia que no dice nada.
+            throw e.getCause() instanceof RuntimeException cause
+                    ? cause
+                    : new IllegalStateException("Fallo al llamar al modelo para " + kind, e.getCause());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AiTimeoutException("La llamada al modelo se interrumpio");
+        }
 
         log.debug("El modelo respondio a {} en {} ms ({} caracteres)", kind,
                 System.currentTimeMillis() - startedAt, content.length());
