@@ -1,6 +1,16 @@
+server:
+  compression:
+    # Apagada por defecto en Spring Boot, y se notaba: el trozo de entrada del cliente viajaba a
+    # 317 kB aunque el navegador pidiera gzip. Comprimido son unos 103 kB, la tercera parte.
+    enabled: true
+    mime-types: text/html,text/css,text/plain,application/javascript,text/javascript,application/json
+    # Por debajo de 1 KB comprimir cuesta mas CPU de lo que ahorra en red.
+    min-response-size: 1KB
+
 spring:
   application:
     name: financetracker-monolith-api
+
 
   datasource:
     url: jdbc:postgresql://localhost:5432/financetracker
