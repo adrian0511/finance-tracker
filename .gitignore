@@ -39,3 +39,7 @@ build/
 .vscode/
 
 .env
+
+# Config de servidores MCP de la maquina local (apunta a un puerto de IntelliJ en 127.0.0.1),
+# no del proyecto: a otra maquina no le sirve.
+.mcp.json

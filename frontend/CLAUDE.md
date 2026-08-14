@@ -155,10 +155,15 @@ frontend/
 
 ## Rutas
 
-Públicas `/login` y `/register`; privadas `/dashboard`, `/accounts`, `/transactions` y `/goals`,
-todas bajo `<ProtectedRoute>` (guard) y dentro de `<AppLayout>` (cabecera común). `/` redirige a
-`/dashboard` y `*` cae en `NotFoundPage` — el 404 lo decide el cliente, porque el backend
-responde `index.html` a cualquier ruta sin extensión que no cuelgue de `/api`.
+Públicas `/login` y `/register`; privadas `/dashboard`, `/accounts`, `/transactions`, `/goals`,
+`/goals/:id` y `/chat`, todas bajo `<ProtectedRoute>` (guard) y dentro de `<AppLayout>` (cabecera
+común). `/` redirige a `/dashboard` y `*` cae en `NotFoundPage` — el 404 lo decide el cliente,
+porque el backend responde `index.html` a cualquier ruta sin extensión que no cuelgue de `/api`.
+
+**Las nueve páginas se cargan con `lazy()`**, así que cada pantalla es su propio trozo y el
+navegador no se baja el dashboard entero para enseñar el login. Hay **dos** `<Suspense>` y hacen
+falta los dos: el de `App.tsx` cubre las rutas públicas, y el de `AppLayout` envuelve al `<Outlet>`
+para que la cabecera no desaparezca mientras carga el trozo de la ruta siguiente.
 
 `ProtectedRoute` guarda en el state del historial la ruta de la que rebotó al usuario, y
 `LoginPage` lo devuelve ahí al entrar. Ese destino pasa por `safeRedirect()`, que exige una ruta
@@ -299,6 +304,20 @@ Otras reglas que ya siguen los cuatro gráficos: rejilla continua y sin vertical
 compite con las series de la proyección, que sí lo son a propósito), animación apagada con
 `useReducedMotion`, y la zona sensible al click es la columna entera del mes, no la barra.
 
+**`Panel` reserva el alto del contenido con `contentHeight`, y lo aplica a los cuatro estados**
+(cargando, error, vacío, con datos). No es cosmético: sin eso la tarjeta mide dos líneas mientras
+carga y varios cientos de píxeles al llegar la respuesta, y cada panel empuja a todos los de abajo
+— era un CLS de 0,142 en el dashboard, que con esto baja a 0,011. Los tres altos de gráficos salen
+del `height` que ya declara cada `ResponsiveContainer`, así que **si cambias el alto de un gráfico
+hay que cambiarlo también en `ALTO`** de `DashboardPage`. El de la tabla se calcula a partir de
+`PAGE_SIZE` en `RecentTransactions`.
+
+**`AIInsightPanel` carga `AIMarkdown` con `lazy()` y lo precarga al pulsar «Generar».** Son 46 kB
+de react-markdown que no pinta nada hasta que hay respuesta, y las dos tarjetas arrancan vacías. La
+precarga en el click es lo que hace que el diferido no se note: mientras el modelo tarda sus
+segundos, el trozo ya ha llegado. Si quitas el `warmMarkdown()` sigue funcionando, pero aparece un
+parpadeo de «Dando formato…» justo al recibir el texto.
+
 El **periodo del dashboard vive en `DashboardPage`**, no en `PeriodSelector`, y lo comparten todos
 los informes de la página menos el gráfico anual, que tiene su propio selector de año. No metas un
 selector de rango dentro de una tarjeta: dos gráficos contiguos con periodos distintos es
@@ -402,6 +421,12 @@ está en el repo. Lo que hay hoy: login y registro, cuentas, movimientos (alta, 
 por tipo y categoría, paginación), metas con su pantalla de detalle y proyección, dashboard con
 periodo compartido y cuatro gráficos, y el sistema de tokens con tema claro/oscuro. Las rutas
 están en la sección «Rutas».
+
+**La IA está en tres sitios**, y ninguno se pide solo: las dos tarjetas del dashboard (análisis e
+informe del mes, con su botón «Generar»), el botón «Sugerir categoría» del alta de movimientos, y
+la pantalla `/chat`. Es a propósito — detrás hay un modelo gratuito con cuota compartida y esperas
+de segundos, así que nada arranca una llamada al montar un componente. El historial del chat vive
+en un `useState` local: el backend no lo persiste y se pierde al refrescar.
 
 **Lo siguiente es presupuestos por categoría**, cuando exista `/api/budgets/*` en el backend —
 mira la sección equivalente del `CLAUDE.md` raíz, que manda sobre el orden. Aquí eso será una

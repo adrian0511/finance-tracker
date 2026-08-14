@@ -184,6 +184,22 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    `@PreAuthorize`.** No es un olvido: el id sale del principal, no de la petición, así que no
    hay ningún id ajeno cuya propiedad validar. `AccountControllerTest` comprueba que dos usuarios
    distintos no se ven las cuentas. `GET /api/accounts/users/{id}` se queda para ADMIN.
+16. **El estado que devuelve OpenRouter no se propaga: los fallos de IA son 503, o 429 si es
+   cuota.** `AiClientException.getStatusCode()` **no es un estado HTTP**: es negativo cuando el
+   fallo ocurrió sin respuesta (-1 red, -2 respuesta vacía, -3 configuración, -4 corte de stream).
+   Hacer `HttpStatus.valueOf()` de eso lanzaba dentro del propio handler, Spring se quedaba sin
+   respuesta de error y **la petición terminaba en 200**: un fallo servido como éxito. Y para los
+   errores HTTP reales, reenviar el estado tal cual convertía un 401 de OpenRouter (nuestra API
+   key) en un 401 nuestro, que el cliente lee como "se acabó la sesión" y desloguea al usuario por
+   un problema del servidor. El 429 se mantiene porque significa lo mismo de los dos lados. Lo
+   cubren cinco tests en `AIControllerTest`.
+17. **El tope de tiempo de la IA es `AIServiceImpl.TOTAL_TIMEOUT`, no `ai.read-timeout`.** El de la
+   librería es de **inactividad**, y OpenRouter manda keep-alive mientras el modelo genera, así que
+   la conexión nunca se queda quieta: se midió una llamada de 268 s con el límite en 60. El tope
+   total va donde está porque `generate(kind, systemPrompt, userPrompt)` es el único punto por el
+   que pasan los cuatro endpoints. La llamada se lanza en un hilo virtual y se deja de esperar a
+   los 90 s — el hilo abandonado sigue vivo hasta que la librería corte, porque una lectura de
+   socket bloqueada no atiende a la interrupción; lo que queda acotado es la espera del usuario.
 
 ## Estado del proyecto y qué viene después
 
@@ -208,9 +224,10 @@ guarda, se calcula agregando en SQL sobre `transaction` (invariante 5), igual qu
 
 Dos huecos conocidos, por si se cruzan con lo que estés tocando:
 
-- **No hay `PUT`/`PATCH` en ninguna parte.** Ni movimientos, ni cuentas, ni metas: se crean y se
-  borran. Si añades la edición de transacciones, el invariante 1 dice lo que hay que respetar
-  (revertir el importe viejo y aplicar el nuevo sobre `Account.balance`).
+- **El único `PUT` de la API es `/api/users/{id}`.** No hay forma de editar ni un movimiento, ni
+  una cuenta, ni una meta: se crean y se borran. Si añades la edición de transacciones, el
+  invariante 1 dice lo que hay que respetar (revertir el importe viejo y aplicar el nuevo sobre
+  `Account.balance`).
 - **`SavingsGoal` no guarda lo ahorrado.** No tiene `currentAmount`: el progreso y los tres
   escenarios se derivan del histórico de movimientos. No le añadas un campo acumulado sin
   pensarlo, porque entonces habría dos fuentes de verdad para el mismo número.
@@ -219,12 +236,12 @@ No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
 
 ## Tests
 
-Nueve clases, **71 tests**, todos en verde:
+Nueve clases, **76 tests**, todos en verde:
 
 | Clase | Tests | Qué es |
 |---|---|---|
+| `AIControllerTest` | 19 | `@SpringBootTest` + MockMvc, `AiService` mockeado |
 | `SavingsGoalServiceImplProjectionTest` | 16 | unitario, Mockito + `Clock` fijo |
-| `AIControllerTest` | 14 | `@SpringBootTest` + MockMvc, `AiService` mockeado |
 | `ReportServiceImplRangeTest` | 10 | unitario, Mockito + `Clock` fijo |
 | `SpaForwardingControllerTest` | 9 | `@SpringBootTest` + MockMvc |
 | `TransactionRepositoryAggregateTest` | 8 | `@DataJpaTest` contra el Postgres local |
@@ -234,7 +251,7 @@ Nueve clases, **71 tests**, todos en verde:
 | `FinancetrackerMonolithApiApplicationTests` | 1 | el `contextLoads` de siempre |
 
 **Todo lo que levanta contexto necesita Postgres levantado** — es decir, todo menos los dos
-unitarios de arriba.
+unitarios con `Clock` fijo.
 
 Ojo con estas cuatro cosas al escribir tests nuevos:
 
