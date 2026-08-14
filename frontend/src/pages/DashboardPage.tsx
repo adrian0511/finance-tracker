@@ -47,12 +47,11 @@ import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
 const YEARS_BACK = 5
 
 /**
- * Alto que se le reserva al contenido de cada panel mientras carga, para que la pagina no pegue
- * un salto al llegar los datos (ver `Panel.contentHeight`).
+ * Alto reservado para el contenido de cada panel mientras carga (ver `Panel.contentHeight`).
  *
- * Los tres primeros son el `height` que ya declara el `ResponsiveContainer` de cada grafico, asi
- * que no son estimaciones: si se cambia el alto de un grafico, hay que cambiarlo aqui tambien.
- * `metas` acompaña al donut porque comparten fila y la fila la marca el mas alto de los dos.
+ * Los tres de graficos son el `height` que ya declara su `ResponsiveContainer`, no estimaciones:
+ * **si cambia el alto de un grafico hay que cambiarlo aqui tambien**. `metas` acompaña al donut
+ * porque comparten fila.
  */
 const ALTO = {
   flujo: 280,

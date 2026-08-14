@@ -50,17 +50,9 @@ public class AIServiceImpl implements AIService {
     private static final int ANALYSIS_SAMPLE_SIZE = 50;
 
     /**
-     * Tope <b>total</b> de una llamada al modelo, del que no hay forma de pasar.
-     *
-     * Los dos timeouts de la libreria no lo cubren: {@code ai.connect-timeout} mide abrir la
-     * conexion y {@code ai.read-timeout} mide <b>inactividad</b>, no duracion. Y OpenRouter manda
-     * keep-alive mientras el modelo genera, asi que la conexion nunca se queda quieta y el limite
-     * de inactividad no salta por mucho que tarde. Medido en esta aplicacion: una llamada de 268
-     * segundos con el read-timeout en 60, que acabo con el usuario mirando "Generando..." cuatro
-     * minutos y medio.
-     *
-     * 90 segundos es holgado para un modelo gratuito con cola (los buenos van entre 5 y 30) y a la
-     * vez es una espera que todavia se puede sostener mirando una pantalla.
+     * Tope <b>total</b> de una llamada al modelo. Los de la libreria no lo cubren:
+     * {@code ai.read-timeout} mide <b>inactividad</b>, y OpenRouter manda keep-alive mientras
+     * genera, asi que nunca salta. Medido: una llamada de 268 segundos con el limite en 60.
      */
     private static final Duration TOTAL_TIMEOUT = Duration.ofSeconds(90);
 
@@ -68,12 +60,8 @@ public class AIServiceImpl implements AIService {
     private final TransactionRepository repository;
 
     /**
-     * La llamada al modelo se lanza en un hilo aparte para poder dejar de esperarla.
-     *
-     * Hilos virtuales y no un pool: un hilo del que se deja de esperar sigue vivo hasta que la
-     * libreria corte por su cuenta, y con un pool de tamaño fijo esos abandonados se comen los
-     * huecos y acaban bloqueando llamadas nuevas que no tenian nada que ver. Uno virtual por
-     * llamada no tiene ese limite y lo que cuesta dejarlo colgado es despreciable.
+     * Hilos virtuales y no un pool: al hilo que se abandona no se le puede cortar la lectura del
+     * socket, y en un pool fijo esos abandonados acabarian bloqueando llamadas nuevas.
      */
     private final ExecutorService modelCalls = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -278,17 +266,13 @@ public class AIServiceImpl implements AIService {
         try {
             content = call.get(TOTAL_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
-            // Se deja de esperar, pero la llamada de debajo no se puede cortar de verdad: una
-            // lectura de socket bloqueada no atiende a la interrupcion, asi que el hilo seguira
-            // ahi hasta que responda o salte el read-timeout. Lo que si queda acotado es lo que
-            // espera el usuario, que es de lo que trata esto.
+            // El cancel no corta la lectura del socket; lo que queda acotado es la espera del
+            // usuario, no la conexion de debajo.
             call.cancel(true);
             log.warn("El modelo no respondio a {} en {} s; se deja de esperar", kind, TOTAL_TIMEOUT.toSeconds());
             throw new AiTimeoutException("El modelo no respondio en " + TOTAL_TIMEOUT.toSeconds() + " segundos");
         } catch (ExecutionException e) {
-            // Lo que falla dentro es casi siempre una AiClientException, que tiene su propio
-            // handler y sabe distinguir la cuota de la clave. Se relanza tal cual para no
-            // enterrarla dentro de una excepcion de concurrencia que no dice nada.
+            // Casi siempre una AiClientException: se relanza tal cual para que la vea su handler.
             throw e.getCause() instanceof RuntimeException cause
                     ? cause
                     : new IllegalStateException("Fallo al llamar al modelo para " + kind, e.getCause());

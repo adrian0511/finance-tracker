@@ -173,8 +173,8 @@ movimientos, para no tener dos fuentes de verdad del mismo número.
 | POST | `/api/ai/chat` | `{ message }` — sin acceso a los movimientos del usuario |
 
 Si el modelo falla, la API responde **503** (o **429** si es cuota), nunca el estado que devuelva
-OpenRouter: un 401 suyo es nuestra API key, no la sesión de nadie. Y hay un tope total de 90 s por
-llamada.
+OpenRouter: un 401 suyo es nuestra API key, no la sesión de nadie. El 429 lleva la cabecera
+`Retry-After` con los segundos que queden. Y hay un tope total de 90 s por llamada.
 
 ---
 
@@ -280,7 +280,7 @@ cd frontend && pnpm dev          # terminal 2
 
 ## 🧪 Tests
 
-**76 tests** repartidos en nueve clases: unitarios con Mockito y reloj fijo (proyección de metas,
+**78 tests** repartidos en nueve clases: unitarios con Mockito y reloj fijo (proyección de metas,
 resolución de rangos), `@DataJpaTest` para las agregaciones en SQL, y `@SpringBootTest` + MockMvc
 para controllers, propiedad de recursos, errores de autenticación y el fallback de rutas del SPA.
 

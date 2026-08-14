@@ -85,9 +85,10 @@ export default function ChatPage() {
           {
             id: crypto.randomUUID(),
             author: 'error',
-            text: isTemporaryAiError(error)
-              ? AI_RETRY_LATER
-              : getErrorMessage(error, 'No se ha podido enviar el mensaje.'),
+            text: getErrorMessage(
+              error,
+              isTemporaryAiError(error) ? AI_RETRY_LATER : 'No se ha podido enviar el mensaje.',
+            ),
           },
         ]),
       // El foco vuelve al campo tanto si va bien como si no: se acaba de rehabilitar y lo

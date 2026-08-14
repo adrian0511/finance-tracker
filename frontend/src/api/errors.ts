@@ -13,12 +13,10 @@ const SERVICE_UNAVAILABLE = 503
 const TOO_MANY_REQUESTS = 429
 
 /**
- * Lo que se le dice al usuario cuando la IA falla por algo temporal.
+ * Respaldo para cuando la IA falla por algo temporal y no hay mensaje del backend que ensenar.
  *
- * El texto lo pone el cliente y no se saca del cuerpo de la respuesta a proposito: ahi el backend
- * manda el mensaje de `AiClientException`, que viene de prompt-link y dice "Error calling the AI
- * API: 503" — ingles, tecnico, y justo el tono de "algo se ha roto" que hay que evitar cuando lo
- * unico que pasa es que hay que esperar un minuto.
+ * Se prefiere el del backend porque en el 429 dice **cuantos segundos** faltan, que es un dato que
+ * aqui no se puede saber.
  */
 export const AI_RETRY_LATER =
   'El asistente no está disponible en este momento. Inténtalo en unos minutos.'

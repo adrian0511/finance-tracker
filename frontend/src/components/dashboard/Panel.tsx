@@ -22,12 +22,9 @@ interface PanelProps {
   isEmpty?: boolean
   emptyMessage?: string
   /**
-   * Alto en px que ocupa el contenido cuando ya hay datos, para reservarlo desde el primer
-   * render. Sin esto el panel mide dos lineas mientras carga y varios cientos de px al llegar la
-   * respuesta, y todo lo que tiene debajo pega un salto: era el CLS de 0,142 del dashboard.
-   *
-   * Es un minimo, no un alto fijo: si el contenido crece por encima, empuja igual. Lo que evita
-   * es el salto de "cargando" a "con datos", que es el que se paga siempre.
+   * Alto en px del contenido con datos, reservado desde el primer render. Sin esto el panel mide
+   * dos lineas mientras carga y varios cientos de px al llegar la respuesta, y empuja a todo lo
+   * que tiene debajo: era el CLS de 0,142 del dashboard. Es un minimo, no un alto fijo.
    */
   contentHeight?: number
   children: ReactNode

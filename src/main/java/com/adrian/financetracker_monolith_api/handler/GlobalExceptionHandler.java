@@ -13,6 +13,7 @@ import com.adrian.financetracker_monolith_api.exception.user.UserNotFoundExcepti
 import io.github.adrian0511.prompt_link.exceptions.AiClientException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,8 +25,12 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Politica de niveles, la misma en todo el backend:
@@ -52,8 +57,21 @@ public class GlobalExceptionHandler {
 
     private static final String DUPLICATE_USERNAME = "Ese nombre de usuario ya existe";
     private static final String DATA_CONFLICT = "Los datos enviados entran en conflicto con los que ya hay guardados";
+    // Con tildes, que estos dos se le ensenan al usuario tal cual.
     private static final String AI_UNAVAILABLE =
-            "El asistente no esta disponible en este momento, intenta de nuevo en unos minutos";
+            "El asistente no está disponible en este momento. Inténtalo de nuevo en unos minutos.";
+    private static final String AI_RATE_LIMITED = "El asistente ha llegado a su límite de peticiones";
+
+    /**
+     * El de <b>Jackson 3</b> ({@code tools.jackson}), que es el que autoconfigura Spring Boot 4.
+     * El {@code ObjectMapper} de Jackson 2 esta en el classpath como transitiva, pero no hay bean
+     * de ese tipo y pedirlo deja la aplicacion sin arrancar.
+     */
+    private final ObjectMapper objectMapper;
+
+    public GlobalExceptionHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFoundException(UserNotFoundException exception,
@@ -257,42 +275,62 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * El estado de OpenRouter <b>no</b> se propaga al cliente, y no es una simplificacion: lo que
-     * falla es una dependencia nuestra, no la peticion del usuario.
+     * El estado de OpenRouter no se propaga: 503, o 429 si es cuota.
      *
-     * Antes se reenviaba tal cual y eso rompia por dos sitios. El grave: {@code getStatusCode()}
-     * devuelve constantes <b>negativas</b> cuando el fallo ocurrio sin respuesta HTTP (-1 red, -2
-     * respuesta vacia, -3 configuracion, -4 corte de stream), y solo el -1 estaba contemplado; con
-     * cualquier otra, {@code HttpStatus.valueOf} lanzaba {@code IllegalArgumentException} <b>dentro
-     * del handler</b>, Spring se quedaba sin respuesta de error y la peticion terminaba en
-     * <b>200</b> — un fallo servido como exito, con el cliente esperando un cuerpo que no llegaba.
-     * Se vio en produccion con un -2 (el modelo respondio sin contenido).
-     *
-     * El segundo, mas silencioso: un <b>401</b> de OpenRouter (nuestra API key, no la sesion del
-     * usuario) salia como 401 nuestro, y el cliente trata el 401 como "no hay sesion" — le habria
-     * borrado el token y mandado al login por un problema de configuracion del servidor. Un 402
-     * (sin credito) habria pedido un pago al usuario por lo mismo.
-     *
-     * Se queda en 503, salvo el 429 que se mantiene porque significa exactamente lo mismo de
-     * nuestro lado que del suyo: hay cuota, se ha agotado, reintenta luego. El cliente ya trata los
-     * dos como temporales y ofrece reintentar.
+     * {@code getStatusCode()} no es un estado HTTP — es negativo cuando el fallo ocurrio sin
+     * respuesta (-1 red, -2 respuesta vacia, -3 configuracion, -4 corte de stream), y pasarselo a
+     * {@code HttpStatus.valueOf} lanzaba dentro del propio handler: la peticion acababa en 200.
+     * Reenviar los estados reales tampoco vale: un 401 suyo es nuestra API key, y el cliente lo
+     * lee como "se acabo la sesion" y desloguea al usuario.
      */
     @ExceptionHandler(AiClientException.class)
     public ResponseEntity<ErrorResponse> handleAiClientException(AiClientException exception,
                                                                  HttpServletRequest request) {
-        // El cuerpo es la parte util: OpenRouter explica ahi si es la clave, el credito o el
-        // limite de peticiones, y esos tres se ven igual desde fuera (un 4xx cualquiera). Sin
-        // esta linea, "la IA no va" no se puede distinguir de "se acabo la cuota". Va al log y no
-        // a la respuesta: quien usa la app no puede hacer nada con ello, y puede delatar detalles
-        // de la cuenta.
+        // El cuerpo dice si es la clave, el credito o la cuota, que desde fuera se ven igual. Va al
+        // log y no a la respuesta: puede delatar detalles de la cuenta.
         log.warn("La API de IA fallo en {} (estado {}): {} | cuerpo: {}", request.getRequestURI(),
                 exception.getStatusCode(), exception.getMessage(), exception.getErrorBody());
 
-        HttpStatus status = exception.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS.value()
-                ? HttpStatus.TOO_MANY_REQUESTS
-                : HttpStatus.SERVICE_UNAVAILABLE;
+        if (exception.getStatusCode() != HttpStatus.TOO_MANY_REQUESTS.value()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(aiError(HttpStatus.SERVICE_UNAVAILABLE, AI_UNAVAILABLE, request));
+        }
 
-        return ResponseEntity.status(status).body(aiError(status, request));
+        Optional<Long> retryAfter = retryAfterSeconds(exception);
+
+        String message = retryAfter
+                .map(seconds -> "%s. Vuelve a intentarlo en %d segundos.".formatted(AI_RATE_LIMITED, seconds))
+                .orElse(AI_RATE_LIMITED + ". Vuelve a intentarlo en unos minutos.");
+
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+        retryAfter.ifPresent(seconds -> response.header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds)));
+
+        return response.body(aiError(HttpStatus.TOO_MANY_REQUESTS, message, request));
+    }
+
+    /**
+     * Los segundos de espera de {@code error.metadata.retry_after_seconds} en el cuerpo del 429.
+     *
+     * Ese cuerpo lo escribe un tercero y no hay contrato: cualquier fallo al leerlo se traga y se
+     * responde igual sin el dato.
+     */
+    private Optional<Long> retryAfterSeconds(AiClientException exception) {
+        String body = exception.getErrorBody();
+
+        if (body == null || body.isBlank()) {
+            return Optional.empty();
+        }
+
+        try {
+            long seconds = objectMapper.readTree(body)
+                    .path("error").path("metadata").path("retry_after_seconds")
+                    .asLong(0);
+
+            return seconds > 0 ? Optional.of(seconds) : Optional.empty();
+        } catch (JacksonException e) {
+            log.debug("El cuerpo del 429 de la IA no se pudo leer como JSON, se responde sin los segundos");
+            return Optional.empty();
+        }
     }
 
     /**
@@ -306,20 +344,22 @@ public class GlobalExceptionHandler {
         log.warn("La IA tardo demasiado en {}: {}", request.getRequestURI(), exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(aiError(HttpStatus.SERVICE_UNAVAILABLE, request));
+                .body(aiError(HttpStatus.SERVICE_UNAVAILABLE, AI_UNAVAILABLE, request));
     }
 
     /**
-     * Un solo mensaje para todos los fallos de IA. El detalle de por que fallo se queda en el log:
-     * el usuario no puede hacer nada distinto segun sea la clave, la cuota o un timeout, y el
-     * campo {@code status} del cuerpo lleva el estado que se devuelve de verdad (antes llevaba el
-     * -1/-2 de la libreria, que no es un estado HTTP y no significaba nada para el cliente).
+     * El detalle de por que fallo la IA se queda en el log: el usuario no puede hacer nada distinto
+     * segun sea la clave, el credito o un timeout, y el cuerpo de OpenRouter puede llevar datos de
+     * la cuenta. La unica excepcion es la cuota, donde si hay algo accionable — cuanto falta.
+     *
+     * El campo {@code status} lleva el estado que se devuelve de verdad; antes llevaba el -1/-2 de
+     * la libreria, que no es un estado HTTP y no significaba nada para el cliente.
      */
-    private ErrorResponse aiError(HttpStatus status, HttpServletRequest request) {
+    private ErrorResponse aiError(HttpStatus status, String message, HttpServletRequest request) {
         return ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
-                .message(AI_UNAVAILABLE)
+                .message(message)
                 .path(request.getRequestURI())
                 .build();
     }

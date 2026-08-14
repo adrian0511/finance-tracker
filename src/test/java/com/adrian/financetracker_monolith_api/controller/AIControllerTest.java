@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -291,13 +292,12 @@ class AIControllerTest {
     }
 
     /**
-     * Que sale por la API cuando la que falla es la IA. Es la parte que no estaba cubierta y por
-     * donde se colo un fallo real: el handler hacia {@code HttpStatus.valueOf} del codigo de la
-     * libreria, que es <b>negativo</b> cuando no hubo respuesta HTTP, reventaba dentro del propio
-     * handler y la peticion acababa respondiendo <b>200</b> a un error.
+     * Que sale por la API cuando la que falla es la IA. Por aqui se colo un fallo real: el handler
+     * hacia {@code HttpStatus.valueOf} del codigo de la libreria, que es negativo cuando no hubo
+     * respuesta HTTP, reventaba dentro del propio handler y la peticion acababa en <b>200</b>.
      *
-     * <p>Los cuatro casos se comprueban por el chat, que es el endpoint que menos preparacion
-     * necesita: lo que se prueba es el handler, y es el mismo para los cuatro.
+     * <p>Todo por el chat, que es el endpoint que menos preparacion necesita: el handler es el
+     * mismo para los cuatro.
      */
     @Nested
     @DisplayName("cuando la IA falla")
@@ -324,10 +324,9 @@ class AIControllerTest {
         }
 
         /**
-         * El mas importante de los cuatro: un 401 de OpenRouter es <b>nuestra</b> API key, no la
-         * sesion del usuario. Si saliera como 401, el cliente lo leeria como "se acabo la sesion",
-         * le borraria el token y lo mandaria al login por un problema de configuracion del
-         * servidor. Por lo mismo un 402 (sin credito) no puede salir como 402.
+         * El mas importante: un 401 de OpenRouter es <b>nuestra</b> API key, no la sesion del
+         * usuario. Si saliera como 401, el cliente le borraria el token y lo mandaria al login por
+         * un problema de configuracion del servidor.
          */
         @Test
         @DisplayName("un 401 de OpenRouter no se propaga: seria deslogear al usuario")
@@ -347,6 +346,33 @@ class AIControllerTest {
                     .andExpect(jsonPath("$.status").value(429));
         }
 
+        /** Los segundos son lo unico accionable de un 429, y salen por la cabecera y por el texto. */
+        @Test
+        @DisplayName("el 429 lleva los segundos de espera que manda OpenRouter")
+        void aRateLimitCarriesItsRetryAfter() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Rate limited", 429, """
+                    {"error":{"message":"Provider returned error","code":429,
+                     "metadata":{"retry_after_seconds":24,"provider_name":"Darkbloom"}}}
+                    """));
+
+            failingChat()
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(header().string("Retry-After", "24"))
+                    .andExpect(jsonPath("$.message").value(containsString("24 segundos")));
+        }
+
+        /** Lo que no puede pasar es que el aviso de cuota reviente al parsear y acabe en un 500. */
+        @Test
+        @DisplayName("si el cuerpo del 429 no es JSON, se responde igual sin los segundos")
+        void anUnreadableRateLimitBodyStillAnswers() throws Exception {
+            whenTheModelFailsWith(new AiClientException("Rate limited", 429, "<html>502 Bad Gateway</html>"));
+
+            failingChat()
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(header().doesNotExist("Retry-After"))
+                    .andExpect(jsonPath("$.message").value(containsString("unos minutos")));
+        }
+
         /** Ni el mensaje de la libreria ni el cuerpo de OpenRouter llegan al cliente. */
         @Test
         @DisplayName("el detalle del fallo se queda en el log, no en la respuesta")
@@ -354,7 +380,7 @@ class AIControllerTest {
             whenTheModelFailsWith(new AiClientException("Unauthorized", 401, "{\"key\":\"sk-or-secreta\"}"));
 
             failingChat()
-                    .andExpect(jsonPath("$.message").value(containsString("no esta disponible")))
+                    .andExpect(jsonPath("$.message").value(containsString("no está disponible")))
                     .andExpect(jsonPath("$.message").value(not(containsString("Unauthorized"))))
                     .andExpect(jsonPath("$.message").value(not(containsString("sk-or-secreta"))));
         }

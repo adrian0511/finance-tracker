@@ -6,13 +6,9 @@ import type { AIResponse } from '@/types/ai'
 import { formatDateTime } from '@/utils/format'
 
 /**
- * El renderizador de Markdown son 46 kB (react-markdown + remark-gfm) que el dashboard se bajaba
- * en cada carga aunque las dos tarjetas arrancan vacias: hasta que alguien pulsa «Generar» no hay
- * ni una linea que renderizar.
- *
- * En diferido no se paga hasta que hay texto — y para que ni siquiera entonces se note, el click
- * en «Generar» dispara la descarga (ver `warmMarkdown`). Mientras el modelo tarda sus segundos en
- * contestar, el trozo ya ha llegado, asi que el `fallback` de abajo casi nunca llega a verse.
+ * 46 kB de react-markdown que el dashboard se bajaba en cada carga aunque las dos tarjetas
+ * arrancan vacias. El click en «Generar» dispara la descarga, asi que mientras el modelo tarda sus
+ * segundos el trozo ya ha llegado y el `fallback` casi nunca se ve.
  */
 const AIMarkdown = lazy(() =>
   import('@/components/ui/AIMarkdown').then((module) => ({ default: module.AIMarkdown })),
@@ -108,7 +104,7 @@ export function AIInsightPanel({
               retryable ? 'bg-superficie-alta text-tinta-suave' : 'bg-alerta-tenue text-alerta'
             }`}
           >
-            {retryable ? AI_RETRY_LATER : getErrorMessage(error, errorMessage)}
+            {getErrorMessage(error, retryable ? AI_RETRY_LATER : errorMessage)}
           </p>
         </div>
       ) : data === undefined ? (

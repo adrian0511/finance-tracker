@@ -191,8 +191,12 @@ los sitios donde el código se rompió una vez y donde es fácil volver a romper
    respuesta de error y **la petición terminaba en 200**: un fallo servido como éxito. Y para los
    errores HTTP reales, reenviar el estado tal cual convertía un 401 de OpenRouter (nuestra API
    key) en un 401 nuestro, que el cliente lee como "se acabó la sesión" y desloguea al usuario por
-   un problema del servidor. El 429 se mantiene porque significa lo mismo de los dos lados. Lo
-   cubren cinco tests en `AIControllerTest`.
+   un problema del servidor. El 429 se mantiene porque significa lo mismo de los dos lados, y
+   además lleva los segundos de espera que OpenRouter manda en `error.metadata.retry_after_seconds`
+   — en la cabecera `Retry-After` y dentro del mensaje. Ese cuerpo lo escribe un tercero, así que
+   si no se puede leer se responde igual sin el dato: el `ObjectMapper` que hace falta es el de
+   **Jackson 3** (`tools.jackson`), que es el único del que hay bean en Spring Boot 4. Lo cubren
+   siete tests en `AIControllerTest`.
 17. **El tope de tiempo de la IA es `AIServiceImpl.TOTAL_TIMEOUT`, no `ai.read-timeout`.** El de la
    librería es de **inactividad**, y OpenRouter manda keep-alive mientras el modelo genera, así que
    la conexión nunca se queda quieta: se midió una llamada de 268 s con el límite en 60. El tope
@@ -236,11 +240,11 @@ No saltes de un punto a otro sin compilar y, si aplica, sin correr tests.
 
 ## Tests
 
-Nueve clases, **76 tests**, todos en verde:
+Nueve clases, **78 tests**, todos en verde:
 
 | Clase | Tests | Qué es |
 |---|---|---|
-| `AIControllerTest` | 19 | `@SpringBootTest` + MockMvc, `AiService` mockeado |
+| `AIControllerTest` | 21 | `@SpringBootTest` + MockMvc, `AiService` mockeado |
 | `SavingsGoalServiceImplProjectionTest` | 16 | unitario, Mockito + `Clock` fijo |
 | `ReportServiceImplRangeTest` | 10 | unitario, Mockito + `Clock` fijo |
 | `SpaForwardingControllerTest` | 9 | `@SpringBootTest` + MockMvc |

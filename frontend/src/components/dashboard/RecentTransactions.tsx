@@ -19,13 +19,9 @@ import { TYPE_LABELS } from '@/utils/transactionFilter'
 const PAGE_SIZE = 8
 
 /**
- * Alto reservado para la tabla mientras carga (ver `Panel.contentHeight`). Este panel era el que
- * mas movia la pagina: pasaba de una linea de «Cargando…» a una tabla de ocho filas con su
- * paginador, y empujaba hacia abajo todo lo que tiene debajo.
- *
- * A diferencia de los graficos, aqui no hay ningun alto declarado del que salga el numero: se
- * calcula con lo que mide una fila (`py-2` + una linea de `text-sm`) por las filas de una pagina,
- * mas la cabecera, el paginador y el enlace. Comprobado midiendo el panel ya renderizado.
+ * Alto reservado para la tabla mientras carga (ver `Panel.contentHeight`). A diferencia de los
+ * graficos aqui no hay ningun alto declarado del que salga: se calcula con lo que mide una fila
+ * por las de una pagina, mas cabecera, paginador y enlace. Comprobado midiendo el panel.
  */
 const ROW_HEIGHT = 37
 const TABLE_CHROME = 70
