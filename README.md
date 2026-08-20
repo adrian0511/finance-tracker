@@ -16,6 +16,10 @@ configurar.
 `index.css` que tiene valor en los dos temas, incluidas las dos paletas de los gráficos, que se
 validan por contraste y daltonismo con `pnpm palette`.
 
+El selector tiene tres estados y está en todas las pantallas, también en las de acceso: **claro**,
+**oscuro** y **sistema**, que no es un alias de claro — sigue al sistema operativo y lo sigue
+haciendo si cambia con la página abierta.
+
 ![Resumen en tema oscuro](docs/screenshots/dashboard-dark.png)
 
 **Detalle de una meta**, con la proyección a tres escenarios. La banda rayada es el margen del
@@ -36,7 +40,7 @@ constante, no que falte un dato.
   </tr>
   <tr>
     <td align="center"><sub>Metas de ahorro</sub></td>
-    <td align="center"><sub>Acceso</sub></td>
+    <td align="center"><sub>Acceso — el selector de tema también está aquí, antes de entrar</sub></td>
   </tr>
 </table>
 

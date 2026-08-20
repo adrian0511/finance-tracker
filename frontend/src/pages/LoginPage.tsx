@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { getErrorMessage } from '@/api/errors'
 import { TextField } from '@/components/form/TextField'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useLogin } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
 
@@ -62,7 +63,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-lienzo px-4 py-12">
+    <main className="relative flex min-h-dvh items-center justify-center bg-lienzo px-4 py-12">
+      {/* Estas dos pantallas van fuera de AppLayout, que es quien lleva la cabecera con el
+          selector. Se repite aqui para poder elegir tema sin haber entrado. */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
         <h1 className="text-3xl font-semibold tracking-tight text-tinta">Iniciar sesión</h1>
         <p className="mt-1 text-sm text-tinta-suave">Accede a tus cuentas y movimientos.</p>

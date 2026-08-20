@@ -251,6 +251,9 @@ elemento de firma se queda disciplinado.
 - **Quién manda es la clase `dark` en `<html>`**, no `prefers-color-scheme`. La pone
   `src/utils/theme.ts`, y hay tres estados: `light`, `dark` y `system` — «sistema» **no** es un
   alias de claro, es seguir al SO y seguir haciéndolo si cambia con la página abierta.
+- **`ThemeToggle` está en tres sitios**: la cabecera de `AppLayout` y, suelto en una esquina,
+  `LoginPage` y `RegisterPage`. Esas dos van fuera del layout, y sin repetirlo ahí no habría forma
+  de elegir tema sin haber entrado.
 - **El tema no está en Zustand.** En `store/` solo hay sesión y avisos. El tema lo guarda el DOM
   porque hay que aplicarlo antes del primer render; React se engancha con `useSyncExternalStore`
   (`hooks/useTheme.ts`). La instantánea lleva elegido **y** efectivo (`system:dark`): si fuera
