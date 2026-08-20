@@ -42,11 +42,9 @@ public class ReportServiceImpl implements ReportService {
     }
 
     /**
-     * Desglose de <strong>gasto</strong> por categoria, de mayor a menor. Usa
-     * {@code findExpensesByCategory} y no {@code findByCategory}: esta ultima agrupa ingresos y
-     * gastos en el mismo total, asi que una categoria con nomina y compras devolvia la resta de
-     * las dos como si fuera lo gastado. El informe se lee siempre como gasto (es lo que pinta el
-     * dashboard y lo que resume la IA), asi que la query tiene que filtrar por tipo.
+     * Desglose de <strong>gasto</strong> por categoria. Usa {@code findExpensesByCategory} y no
+     * {@code findByCategory}: aquella agrupa ingresos y gastos en el mismo total, asi que una
+     * categoria con nomina y compras devolvia la resta como si fuera lo gastado.
      */
     @Override
     public List<CategoryReportResponse> getByCategory(UUID userId, LocalDate from, LocalDate to) {
@@ -64,15 +62,13 @@ public class ReportServiceImpl implements ReportService {
     public List<CashFlowResponse> getCashFlow(UUID userId, LocalDate from, LocalDate to) {
         DateRange range = resolveRange(from, to);
 
-        // El acumulado lo calcula la query con una funcion de ventana. Arranca en cero dentro del
-        // rango: es el flujo del periodo, no el saldo acumulado desde el primer movimiento.
+        // Arranca en cero dentro del rango: es el flujo del periodo, no el saldo de las cuentas.
         return repository.findCashFlow(userId, range.start(), range.end());
     }
 
     /**
-     * Convierte el rango opcional en fechas concretas: ambos limites son inclusivos, asi que
-     * el dia final llega hasta LocalTime.MAX (si no, quedarian fuera los movimientos de ese dia
-     * con hora distinta de medianoche).
+     * El rango opcional a fechas concretas. Ambos limites inclusivos, asi que el dia final llega
+     * hasta {@code LocalTime.MAX} o se quedarian fuera los movimientos de ese mismo dia.
      */
     private DateRange resolveRange(LocalDate from, LocalDate to) {
         LocalDate end = to != null ? to : LocalDate.now(clock);
@@ -84,9 +80,8 @@ public class ReportServiceImpl implements ReportService {
                     "La fecha inicial (%s) no puede ser posterior a la final (%s)".formatted(start, end));
         }
 
-        // Se registra lo que entro y lo que sale. Cuando el cliente no manda fechas, el rango lo
-        // decide este metodo (ultimos 6 meses) y el informe respondia sobre un periodo que no
-        // aparecia por ningun lado: "esos numeros no son los mios" suele ser esto.
+        // Lo pedido y lo aplicado: sin fechas el rango lo decide este metodo, y el informe
+        // respondia sobre un periodo que no aparecia por ningun lado.
         log.debug("Rango del informe: pedido from={} to={}, aplicado {} .. {}", from, to, start, end);
 
         return new DateRange(start.atStartOfDay(), end.atTime(LocalTime.MAX));

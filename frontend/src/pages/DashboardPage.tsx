@@ -34,13 +34,9 @@ import { monthPeriod, presetPeriod, type Period } from '@/utils/period'
  *   │ Análisis (IA)     [Generar]   │ Informe del mes (IA) [Generar]│
  *   └───────────────────────────────┴───────────────────────────────┘
  *
- * Dos cosas del orden no son estéticas y no se pueden mover sueltas: el periodo va arriba del
- * todo porque manda sobre todo lo que hay debajo, y la tabla va inmediatamente bajo el donut
- * porque es lo que se filtra al pinchar una porcion — separarlos deja el filtro fuera de la
- * vista y la tabla cambia sin que se vea por que.
- *
- * Las dos de IA cierran la pagina y arrancan vacias: son lo unico que no se pide solo, porque
- * detras hay un modelo con cuota y una espera de segundos. Tampoco dependen del periodo.
+ * Dos cosas del orden no son esteticas: el periodo va arriba porque manda sobre todo lo demas, y
+ * la tabla va bajo el donut porque es lo que filtra al pinchar una porcion — separarlos deja el
+ * filtro fuera de la vista y la tabla cambia sin que se vea por que.
  */
 
 /** Años que ofrece el selector del grafico mensual, hacia atras desde el actual. */
@@ -63,16 +59,15 @@ const ALTO = {
 export default function DashboardPage() {
   const navigate = useNavigate()
 
-  // El periodo vive aqui, no en el selector: es lo que comparten todos los informes de la
-  // pagina, y al entrar en la clave de cada query, cambiarlo ya dispara solo el refetch.
+  // Vive aqui y no en el selector: lo comparten todos los informes, y al entrar en la clave de
+  // cada query, cambiarlo ya dispara el refetch solo.
   const [period, setPeriod] = useState<Period>(() => presetPeriod('month'))
   const [selection, setSelection] = useState<CategorySelection | null>(null)
   const [year, setYear] = useState(() => new Date().getFullYear())
 
-  // Un rango invertido lo rechaza el backend con un 400: no se pide hasta que vuelva a tener
-  // sentido, para no llenar la pantalla de errores mientras se escribe una fecha a mano. El
-  // rango se manda igual aunque no valga, para que la clave no colapse en la del rango por
-  // defecto y la pagina acabe ensenando seis meses cualesquiera como si fueran los pedidos.
+  // Un rango invertido es un 400: no se pide mientras se escribe una fecha a mano. Se manda
+  // igual aunque no valga, o la clave colapsaria en la del rango por defecto y la pagina
+  // ensenaria seis meses cualesquiera como si fueran los pedidos.
   const valid = period.from <= period.to
   const range = { from: period.from, to: period.to }
 
@@ -80,19 +75,15 @@ export default function DashboardPage() {
   const categories = useCategoryReport(range, valid)
   const monthly = useMonthlyReport(year)
 
-  // Las dos de IA no reciben el periodo: el backend mira el historico reciente y el mes en curso
-  // por su cuenta. Y no se piden solas — las dispara el boton de cada tarjeta.
+  // Sin periodo: el backend mira el historico reciente y el mes en curso por su cuenta.
   const analysis = useAnalysis()
   const report = useReport()
 
   /**
-   * Sin un solo movimiento, los dos endpoints contestan su mensaje de guardia sin llamar al
-   * modelo. Es decir, no se gasta cuota — pero el viaje si se gasta, y aqui ya se sabe la
-   * respuesta: la lista esta en cache, la pide `RecentTransactions` en esta misma pagina.
-   *
-   * Solo se bloquea cuando consta que hay cero. Mientras la lista no ha llegado (`undefined`)
-   * el boton se queda activo: apagarlo por no saber todavia seria decirle al usuario que le
-   * falta algo cuando a lo mejor tiene cien movimientos.
+   * Sin movimientos los endpoints contestan su guardia sin gastar cuota, pero el viaje si se
+   * gasta y aqui ya se sabe la respuesta. Solo se bloquea cuando **consta** que hay cero: con la
+   * lista todavia en `undefined` el boton sigue activo, o le diriamos a alguien que le falta algo
+   * cuando puede tener cien movimientos.
    */
   const { data: transactions } = useTransactions()
   const noTransactions = transactions !== undefined && transactions.length === 0
@@ -102,8 +93,8 @@ export default function DashboardPage() {
 
   const changePeriod = (next: Period) => {
     setPeriod(next)
-    // El filtro del donut se suelta al cambiar de periodo: una categoria que existia en marzo
-    // puede no tener ni un movimiento en abril, y la tabla se quedaria vacia sin decir por que.
+    // Se suelta el filtro del donut: esa categoria puede no existir en el periodo nuevo, y la
+    // tabla se quedaria vacia sin decir por que.
     setSelection(null)
   }
 
@@ -214,10 +205,8 @@ export default function DashboardPage() {
           error={report.error}
           errorMessage="No se ha podido generar el informe."
           onGenerate={() => void report.refetch()}
-          // Mismo bloqueo que el analisis, y solo ese. El informe ademas se queda vacio si no hay
-          // movimientos *de este mes*, pero eso no se decide aqui: el backend corta por
-          // YearMonth.now() del servidor, y replicar el corte con la fecha del navegador apagaria
-          // el boton a destiempo en el cambio de mes o con otro huso horario.
+          // Mismo bloqueo que el analisis y solo ese: el corte por mes lo hace el backend con su
+          // reloj, y replicarlo con la fecha del navegador fallaria en otro huso horario.
           disabledReason={needsTransactions}
         />
       </div>

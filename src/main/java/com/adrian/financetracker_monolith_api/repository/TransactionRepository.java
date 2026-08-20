@@ -20,8 +20,7 @@ import java.util.UUID;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
 
-    // Ordenadas en la query, no en el servicio ni en el cliente: es la lista que se pinta tal
-    // cual, y quien sabe ordenar barato es la base de datos.
+    // Ordenadas en la query: se pinta tal cual, y quien ordena barato es la base de datos.
     List<Transaction> findByAccountUserIdOrderByDateDesc(UUID userId);
 
     List<Transaction> findByAccountIdOrderByDateDesc(UUID accountId);
@@ -29,29 +28,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     boolean existsByAccountId(UUID accountId);
 
     /**
-     * El dueño de un movimiento, resuelto en SQL. Es lo que consulta {@code SecurityEvaluator}
-     * para decidir el 403.
+     * El dueño de un movimiento, para el 403 de {@code SecurityEvaluator}. En SQL y no navegando
+     * {@code transaction.getAccount().getUser()}: {@code @PreAuthorize} se evalua fuera de toda
+     * transaccion, asi que esos dos LAZY solo funcionaban con Open Session In View.
      *
-     * Existe porque el evaluador navegaba {@code transaction.getAccount().getUser()}, y eso son
-     * dos asociaciones LAZY resueltas <b>fuera</b> de toda transaccion: {@code @PreAuthorize} se
-     * evalua antes de que empiece la del servicio. Funcionaba solo porque Open Session In View
-     * mantenia la sesion abierta durante toda la peticion; al apagarlo saltaba
-     * LazyInitializationException y el borrado respondia 500.
-     *
-     * Devuelve Optional para poder distinguir «no existe» (404) de «es de otro» (403), que es la
-     * misma diferencia que hacia el codigo anterior. Y es una sola consulta con dos joins en vez
-     * de tres viajes a la base de datos.
+     * El Optional distingue «no existe» (404) de «es de otro» (403).
      */
     @Query("SELECT t.account.user.id FROM Transaction t WHERE t.id = :id")
     Optional<UUID> findOwnerId(@Param("id") UUID id);
 
     /**
-     * Balance corriente del periodo: cada fila trae el acumulado hasta ese movimiento, calculado
-     * con una funcion de ventana en vez de recorriendo la lista en el servicio.
-     * <p>
-     * El desempate por {@code t.id} no es decorativo: con dos movimientos en el mismo instante,
-     * el marco RANGE por defecto les daria a los dos el acumulado del grupo entero. Al ordenar
-     * por (fecha, id) no hay empates posibles y cada fila recibe su acumulado.
+     * Balance corriente del periodo, con una funcion de ventana. El desempate por {@code t.id} no
+     * es decorativo: con dos movimientos en el mismo instante, el marco RANGE por defecto les
+     * daria a los dos el acumulado del grupo entero.
      */
     @Query("""
                 SELECT new com.adrian.financetracker_monolith_api.dto.report.CashFlowResponse(
@@ -123,9 +112,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     List<MonthlyReportResponse> findByMonthly(@Param("userId") UUID userId, @Param("year") int year);
 
     /**
-     * Solo gastos, de mayor a menor importe. El ORDER BY va sobre el agregado a proposito: es lo
-     * que consume {@code AIServiceImpl.generateReport}, que necesita las categorias mas caras
-     * primero. La categoria puede venir a null (es texto libre en la entidad).
+     * Solo gastos, de mayor a menor sobre el agregado. La categoria puede venir a null, que es
+     * texto libre en la entidad.
      */
     @Query("""
                 SELECT new com.adrian.financetracker_monolith_api.dto.report.CategoryReportResponse(
@@ -144,10 +132,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                                                         @Param("end") LocalDateTime end);
 
     /**
-     * Neto por mes (ingresos menos gastos), del mas antiguo al mas reciente. Devuelve solo los
-     * meses con movimientos: los huecos los rellena el servicio, que es quien sabe que rango
-     * pidio. Agrupa por YEAR+MONTH, no solo por MONTH, para que un rango a caballo entre dos
-     * anos no sume enero de 2025 con enero de 2026.
+     * Neto por mes, del mas antiguo al mas reciente, y solo los meses con movimientos: los huecos
+     * los rellena el servicio. Agrupa por YEAR+MONTH para no sumar enero de 2025 con el de 2026.
      */
     @Query("""
                 SELECT new com.adrian.financetracker_monolith_api.dto.goal.MonthlyNet(

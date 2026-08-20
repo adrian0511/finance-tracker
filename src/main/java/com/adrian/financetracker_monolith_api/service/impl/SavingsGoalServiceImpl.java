@@ -98,8 +98,7 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
     @Override
     @Transactional
     public void delete(UUID id, UUID userId) {
-        // existsByIdAndUserId en vez de existsById: si la meta es de otro usuario responde 404
-        // igual que si no existiera, sin revelar que ese UUID pertenece a alguien.
+        // Con el userId dentro: una meta ajena responde 404, sin revelar que ese UUID existe.
         if (!repository.existsByIdAndUserId(id, userId))
             throw new SavingsGoalNotFoundException("Savings goal not found with id: " + id);
 
@@ -112,8 +111,7 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
     @Transactional(readOnly = true)
     public SavingsProjectionResponse project(UUID goalId, UUID userId) {
 
-        // findByIdAndUserId valida ownership dentro de la propia query: una meta ajena responde
-        // 404, igual que delete, sin revelar que ese UUID existe.
+        // Ownership dentro de la query: una meta ajena responde 404, igual que delete.
         SavingsGoal goal = repository.findByIdAndUserId(goalId, userId)
                 .orElseThrow(() -> new SavingsGoalNotFoundException("Savings goal not found with id: " + goalId));
 
@@ -128,9 +126,8 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
         BigDecimal optimisticRate = average.add(deviation);
         BigDecimal pessimisticRate = average.subtract(deviation);
 
-        // Las cuatro cifras de las que sale todo lo demas. Una proyeccion rara casi siempre es un
-        // historico raro (un mes sin movimientos hunde la media), y sin esto habria que reconstruir
-        // a mano de donde salieron los tres escenarios.
+        // Las cuatro cifras de las que sale todo: una proyeccion rara casi siempre es un
+        // historico raro, y sin esto hay que reconstruir a mano de donde salio.
         log.debug("Proyeccion de la meta {}: saldo={}, falta={}, media mensual={}, desviacion={} ({} meses de historico)",
                 goalId, currentBalance, remaining, average, deviation, monthlyNets.size());
 
@@ -170,10 +167,9 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
     }
 
     /**
-     * Neto (ingresos menos gastos) de cada uno de los ultimos meses CERRADOS, del mas antiguo al
-     * mas reciente. Se excluye el mes en curso a proposito: al llevar solo unos dias vividos su
-     * neto es parcial y hundiria la media, dando una proyeccion peor cuanto antes se consulte.
-     * Los meses sin movimientos cuentan como 0, no se omiten: un mes sin ahorrar es informacion.
+     * Neto de los ultimos meses <b>cerrados</b>. El mes en curso se excluye: su neto es parcial y
+     * hundiria la media, dando una proyeccion peor cuanto antes se consulte. Los meses sin
+     * movimientos cuentan como 0, que un mes sin ahorrar es informacion.
      */
     private List<BigDecimal> monthlyNets(UUID userId) {
         YearMonth currentMonth = YearMonth.now(clock);
@@ -183,8 +179,7 @@ public class SavingsGoalServiceImpl implements SavingsGoalService {
         LocalDateTime start = firstMonth.atDay(1).atStartOfDay();
         LocalDateTime end = lastMonth.atEndOfMonth().atTime(LocalTime.MAX);
 
-        // La suma por mes la hace la base de datos: aqui solo llegan como mucho HISTORY_MONTHS
-        // filas ya agregadas, en vez del historico de movimientos de medio ano.
+        // La suma por mes la hace la query: aqui llegan HISTORY_MONTHS filas ya agregadas.
         Map<YearMonth, BigDecimal> netByMonth = transactionRepository
                 .findMonthlyNets(userId, start, end).stream()
                 .collect(Collectors.toMap(MonthlyNet::month, MonthlyNet::getNet));

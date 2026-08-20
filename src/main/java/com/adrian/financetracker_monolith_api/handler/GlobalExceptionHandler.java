@@ -33,23 +33,12 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Politica de niveles, la misma en todo el backend:
+ * Niveles: ERROR solo para lo que nadie previo, WARN para el fallo controlado que delata un
+ * problema, DEBUG para el detalle. Los errores de cliente (404, 400, 403) van a DEBUG: son
+ * funcionamiento normal y en WARN taparian los avisos que si importan.
  *
- * <ul>
- *   <li><b>ERROR</b>: solo lo que nadie previo, con traza. Si aparece uno, hay un bug.</li>
- *   <li><b>WARN</b>: fallo controlado que aun asi delata un problema (login fallido, la IA
- *       caida, una violacion de integridad).</li>
- *   <li><b>INFO</b>: que ha pasado, <b>sin cifras</b>: alta y baja de recursos, con ids.</li>
- *   <li><b>DEBUG</b>: el detalle, y ahi si van importes, saldos, rangos y tiempos.</li>
- * </ul>
- *
- * La linea entre INFO y DEBUG es deliberada: un log de INFO en produccion no puede ir contando
- * cuanto cobra ni cuanto gasta nadie. Los importes solo salen si alguien sube el nivel a DEBUG
- * para diagnosticar algo. Por lo mismo, aqui no se registra nunca una contrasena, un token ni el
- * texto que el usuario le escribe al modelo.
- *
- * Los errores de cliente (404, 400, 403) van a DEBUG: son parte del funcionamiento normal de una
- * API y en WARN solo servirian para tapar los avisos que si importan.
+ * Aqui no se registra nunca una contrasena, un token, un importe ni lo que el usuario le escribe
+ * al modelo.
  */
 @Slf4j
 @RestControllerAdvice
@@ -154,18 +143,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Sin esto lo cazaba el handler generico y registrarse con un username ya cogido respondia
-     * 500. El mensaje se decide mirando la causa: la unica restriccion que puede tocar un
-     * usuario hoy es la de username, pero este handler cubre cualquier violacion de integridad
-     * (una FK, por ejemplo), y ahi hablar de nombres de usuario seria mentir.
+     * Sin esto lo cazaba el generico y un username repetido respondia 500. El mensaje mira la
+     * causa: el handler cubre cualquier violacion de integridad (una FK, por ejemplo), y ahi
+     * hablar de nombres de usuario seria mentir.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
             DataIntegrityViolationException exception,
             HttpServletRequest request) {
-        // WARN y no DEBUG: un username repetido es rutina, pero cualquier otra violacion de
-        // integridad (una FK que salta al borrar) es una señal de que algo del modelo no cuadra.
-        // Se registra la causa mas especifica, que es la que dice que restriccion salto.
+        // WARN porque una violacion que no sea el username repetido delata algo del modelo.
         log.warn("Violacion de integridad en {} {}: {}", request.getMethod(), request.getRequestURI(),
                 exception.getMostSpecificCause().getMessage());
 
@@ -212,11 +198,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    /**
-     * DEBUG y no WARN: un 403 significa que {@code @PreAuthorize} ha hecho su trabajo, que es
-     * exactamente lo que tiene que pasar cuando alguien pide un recurso ajeno. Lo interesante
-     * seria que se repitiera mucho, y para eso ya esta el nivel de diagnostico.
-     */
+    /** DEBUG: un 403 es {@code @PreAuthorize} haciendo su trabajo, no un problema. */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException exception,
@@ -237,8 +219,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             AuthenticationException exception,
             HttpServletRequest request) {
-        // Se registra el tipo de excepcion ademas del mensaje: es lo que separa un token
-        // caducado de un fallo de infraestructura, que aqui llegan los dos.
+        // El tipo ademas del mensaje: separa un token caducado de un fallo de infraestructura.
         log.warn("Fallo de autenticacion en {}: {} - {}", request.getRequestURI(),
                 exception.getClass().getSimpleName(), exception.getMessage());
 
@@ -260,8 +241,7 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Validation error");
 
-        // Solo el campo y el motivo, nunca el valor que se envio: por aqui pasan los cuerpos de
-        // registro, y el valor rechazado podria ser una contrasena que no cumple el minimo.
+        // Nunca el valor enviado: por aqui pasan los cuerpos de registro, con contrasenas.
         log.debug("Cuerpo invalido en {} {}: {}", request.getMethod(), request.getRequestURI(), errorMessage);
 
         ErrorResponse error = ErrorResponse.builder()
@@ -286,8 +266,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AiClientException.class)
     public ResponseEntity<ErrorResponse> handleAiClientException(AiClientException exception,
                                                                  HttpServletRequest request) {
-        // El cuerpo dice si es la clave, el credito o la cuota, que desde fuera se ven igual. Va al
-        // log y no a la respuesta: puede delatar detalles de la cuenta.
+        // El cuerpo va al log y no a la respuesta: puede delatar detalles de la cuenta.
         log.warn("La API de IA fallo en {} (estado {}): {} | cuerpo: {}", request.getRequestURI(),
                 exception.getStatusCode(), exception.getMessage(), exception.getErrorBody());
 

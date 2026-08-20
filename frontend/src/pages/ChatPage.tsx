@@ -23,13 +23,9 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
  *   │ [ escribe aquí…                              ]  [Enviar]  │
  *   └───────────────────────────────────────────────────────────┘
  *
- * El historial es estado local y se pierde al refrescar: el backend no guarda la conversacion
- * (`/api/ai/chat` recibe un mensaje suelto y no una conversacion), asi que no hay nada que
- * recuperar al volver. Para un proyecto personal esta bien; el dia que se quiera persistir, el
- * cambio empieza en el backend, no aqui.
- *
- * Y ojo con eso: como cada peticion lleva **solo** el mensaje actual, el modelo no recuerda lo
- * anterior aunque en pantalla parezca una conversacion. Se avisa en el pie del formulario.
+ * El historial es estado local y se pierde al refrescar: `/api/ai/chat` recibe un mensaje suelto
+ * y el backend no guarda nada. De ahi que **el modelo no recuerde lo anterior** aunque en
+ * pantalla parezca una conversacion; se avisa en el pie del formulario.
  */
 
 interface ChatMessage {
@@ -49,8 +45,8 @@ export default function ChatPage() {
   const threadEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Al fondo en cada cambio: lo ultimo que se ha dicho es lo que interesa, y tambien mientras
-  // sale «Escribiendo…», que si no aparece por debajo del borde y parece que no pasa nada.
+  // Al fondo en cada cambio, tambien con el «Escribiendo…»: si no, sale bajo el borde y parece
+  // que no pasa nada.
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({
       behavior: reducedMotion ? 'auto' : 'smooth',
@@ -66,8 +62,8 @@ export default function ChatPage() {
       return
     }
 
-    // El mensaje del usuario entra en el hilo antes de que salga la peticion: la respuesta tarda
-    // segundos y dejar el campo vacio sin nada nuevo arriba parece que se ha perdido.
+    // Antes de que salga la peticion: la respuesta tarda segundos y el campo vaciandose sin nada
+    // nuevo arriba parece que se ha perdido.
     setMessages((current) => [...current, { id: crypto.randomUUID(), author: 'user', text }])
     setDraft('')
 
@@ -77,8 +73,7 @@ export default function ChatPage() {
           ...current,
           { id: crypto.randomUUID(), author: 'assistant', text: data.response },
         ]),
-      // El fallo se queda en el hilo, en el hueco de la respuesta que no llego, en vez de en un
-      // toast que desaparece: asi se ve a que mensaje corresponde y sigue ahi al volver a leer.
+      // En el hilo y no en un toast que desaparece: asi se ve a que mensaje corresponde.
       onError: (error) =>
         setMessages((current) => [
           ...current,
@@ -91,8 +86,7 @@ export default function ChatPage() {
             ),
           },
         ]),
-      // El foco vuelve al campo tanto si va bien como si no: se acaba de rehabilitar y lo
-      // siguiente que quiere hacer cualquiera es escribir otra vez.
+      // Vaya bien o mal: el campo se acaba de rehabilitar y lo siguiente es escribir otra vez.
       onSettled: () => inputRef.current?.focus(),
     })
   }
@@ -102,9 +96,7 @@ export default function ChatPage() {
       <h1 className="text-3xl font-semibold tracking-tight text-tinta">Asistente</h1>
       <p className="mt-2 text-tinta-suave">Preguntas generales sobre finanzas personales.</p>
 
-      {/* La conversacion tiene su propio scroll y una altura acotada: el campo de escribir se
-          queda siempre a la vista, sin tener que bajar hasta el final de una pagina que crece
-          con cada mensaje. */}
+      {/* Scroll propio y altura acotada: el campo de escribir se queda siempre a la vista. */}
       <div
         className="mt-6 flex max-h-[60vh] min-h-64 flex-col gap-3 overflow-y-auto rounded-lg border border-borde bg-superficie p-4 shadow-tarjeta"
         role="log"
@@ -144,10 +136,8 @@ export default function ChatPage() {
         <label htmlFor="message" className="sr-only">
           Tu mensaje
         </label>
-        {/* Enter envia sin nada especial: es un input dentro de un form, y el navegador ya lo
-            hace. Se deshabilita mientras se espera para no encadenar peticiones a un modelo con
-            cuota — dos preguntas seguidas se comerian el limite y la segunda respuesta llegaria
-            fuera de sitio, porque el backend no relaciona una con otra. */}
+        {/* Enter envia solo, que es un input dentro de un form. Se deshabilita mientras espera
+            para no encadenar peticiones a un modelo con cuota. */}
         <input
           id="message"
           ref={inputRef}
@@ -167,15 +157,9 @@ export default function ChatPage() {
         </button>
       </form>
 
-      {/*
-        Nota de alcance, deliberadamente pequena y al pie: es una aclaracion que se consulta al
-        chocar con ella, no un aviso que haya que leer antes de empezar. Un banner arriba ocuparia
-        mas que la primera respuesta y se seguiria ignorando igual.
-
-        Dice lo mismo que el system prompt del backend, y esa coincidencia no es decorativa: alli
-        se le ordena al modelo que, sin acceso a los movimientos, remita al analisis y al informe.
-        Si un dia se cambia el prompt para darle los datos, este texto pasa a ser mentira.
-      */}
+      {/* Pequena y al pie a proposito: se consulta al chocar con ella, no antes de empezar. Dice
+          lo mismo que el system prompt del backend — si un dia se le dan los datos al modelo,
+          este texto pasa a ser mentira. */}
       <p className="mt-2 text-xs leading-relaxed text-tinta-tenue">
         El asistente no ve tus movimientos: para tus cifras concretas están el análisis y el informe
         del mes, en el{' '}
@@ -199,9 +183,8 @@ export default function ChatPage() {
 }
 
 /**
- * Tu a la derecha, el asistente a la izquierda. El lado no es lo unico que los separa: tambien
- * el color de fondo, porque «a la derecha» se pierde en cuanto un mensaje ocupa el ancho entero
- * y no se ve para nadie que no distinga la alineacion de un vistazo.
+ * Tu a la derecha, el asistente a la izquierda — y ademas con distinto fondo, porque «a la
+ * derecha» se pierde en cuanto un mensaje ocupa el ancho entero.
  */
 function Bubble({ message }: { message: ChatMessage }) {
   if (message.author === 'error') {
@@ -215,9 +198,8 @@ function Bubble({ message }: { message: ChatMessage }) {
     )
   }
 
-  // Lo que escribe el usuario se pinta tal cual: si alguien manda unos asteriscos, lo que espera
-  // ver son sus asteriscos, no una palabra en negrita. El Markdown solo se interpreta en lo que
-  // devuelve el modelo, que es lo unico que lo escribe queriendo.
+  // Lo del usuario tal cual: si manda asteriscos espera ver asteriscos, no una negrita. El
+  // Markdown solo se interpreta en lo que devuelve el modelo.
   if (message.author === 'user') {
     return (
       <p className="max-w-[85%] self-end rounded-lg bg-cobalto-tenue px-3 py-2 text-sm leading-relaxed whitespace-pre-line text-tinta">

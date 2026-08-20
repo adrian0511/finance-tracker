@@ -17,6 +17,7 @@ Es un monolito, un solo módulo Maven.
 - MapStruct (`componentModel = "spring"`) para mapear entidad → DTO
 - `prompt-link` (librería propia, `io.github.adrian0511:prompt-link`) para hablar con
   modelos de IA vía OpenRouter (`AiService.generate(prompt).getContent()`)
+- `spring-dotenv` para que Spring lea el `.env` de la raíz al arrancar
 
 ## Arquitectura y convenciones — SIGUE ESTE PATRÓN SIEMPRE
 
@@ -33,6 +34,8 @@ src/main/java/com/adrian/financetracker_monolith_api/
 ├── exception/<dominio>/  # Una excepción custom por caso, extiende RuntimeException
 ├── handler/        # GlobalExceptionHandler único con @RestControllerAdvice
 ├── security/       # JWT, filtros, config, evaluadores de ownership
+├── config/         # Caché de los assets estáticos
+├── logging/        # Filtro de peticiones con id de correlación
 └── util/           # Enums (Role, Type)
 ```
 
@@ -87,7 +90,10 @@ tú directamente en tu máquina.
 ## Configuración de IA
 
 `application.yaml`, sección `ai:`. La librería `prompt-link` habla con OpenRouter
-(`https://openrouter.ai/api/v1`). La API key sale de la variable de entorno `API_KEY`.
+(`https://openrouter.ai/api/v1`). La API key sale de `API_KEY`, que se lee del archivo `.env` de
+la raíz — lo carga la dependencia `spring-dotenv`, no hay que exportar nada a mano. Una variable
+de entorno de verdad gana sobre el archivo, que es lo que hace falta en producción. El `.env` está
+en `.gitignore` y no se commitea.
 
 El campo `model` **debe** apuntar a un modelo con sufijo `:free` (catálogo vigente en
 `https://openrouter.ai/models?max_price=0`). Ahora mismo es `openai/gpt-oss-20b:free`.

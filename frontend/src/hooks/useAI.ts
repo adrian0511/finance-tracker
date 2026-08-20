@@ -3,30 +3,18 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import * as aiApi from '@/api/ai'
 
 /**
- * Las llamadas al modelo no son un fetch barato: detras hay un modelo gratuito con limite de
- * peticiones y una respuesta que tarda segundos. Por eso ninguna de las cuatro se dispara sola.
- *
- * El analisis y el informe son consultas (tienen resultado que se queda en pantalla y se puede
- * volver a pedir), pero nacen con `enabled: false` y las lanza `refetch()` desde un boton. Sin
- * eso, montar la pantalla — o volver a ella — gastaria una peticion que nadie pidio.
- *
- * Categorizar y chatear son acciones sueltas: no hay un "estado del servidor" que cachear,
- * cada envio es una respuesta distinta a un texto distinto. Eso es una mutacion.
+ * Detras hay un modelo gratuito con limite de peticiones y esperas de segundos, asi que ninguna
+ * de las cuatro se dispara sola: analisis e informe son queries con `enabled: false` que lanza un
+ * boton, y categorizar y chatear son mutaciones porque no hay estado de servidor que cachear.
  */
 
 /**
- * Ojo con el estado al pintar esto. Con `enabled: false` y sin datos, TanStack deja la query en
- * `status: 'pending'` para siempre, asi que **`isPending` no significa "cargando"**: vale true
- * desde el primer render, antes de que nadie pulse nada. Lo que hay que mirar es:
+ * Con `enabled: false` y sin datos, TanStack deja `status: 'pending'` para siempre: **`isPending`
+ * no significa "cargando"**. Se mira `isFetching` (llamada en vuelo) y `data === undefined`
+ * (todavia no se ha generado nada).
  *
- * - `isFetching` → hay una llamada en vuelo (el spinner del boton).
- * - `data === undefined` → todavia no se ha generado nada (el estado vacio con el boton).
- * - `refetch()` → lo que engancha el boton "Generar analisis".
- *
- * `retry: false` a proposito, pisando el default global de dos reintentos: ese default esta
- * pensado para peticiones que fallan por red y se arreglan repitiendolas. Aqui un 5xx suele ser
- * el proveedor del modelo cayendose o la cuota agotada, y reintentar es gastar dos peticiones
- * mas de las que ya no hay, con el usuario esperando el triple.
+ * `retry: false` pisa el default global de dos reintentos: aqui un 5xx suele ser el proveedor
+ * caido o la cuota agotada, y reintentar gasta peticiones que ya no hay.
  */
 export function useAnalysis() {
   return useQuery({
@@ -48,13 +36,9 @@ export function useReport() {
 }
 
 /**
- * Sin toast de exito en ninguna de las dos: el resultado *es* la respuesta, y se pinta. Un aviso
- * de "listo" encima de un texto que acaba de aparecer no informa de nada.
- *
- * Y sin toast de error, al contrario que el resto de mutaciones del repo: sugerir la categoria
- * es una ayuda opcional dentro de un formulario que funciona igual sin ella. Que falle no es un
- * suceso del que haya que enterarse a nivel de aplicacion, se dice al lado del boton y ya. Quien
- * lo llame se ocupa del `onError`.
+ * Sin toast, al contrario que el resto de mutaciones del repo: el resultado *es* la respuesta y
+ * se pinta, y sugerir la categoria es una ayuda opcional que se avisa al lado del boton. Quien lo
+ * llame se ocupa del `onError`.
  */
 export function useCategorize() {
   return useMutation({
@@ -63,10 +47,8 @@ export function useCategorize() {
 }
 
 /**
- * Tampoco lleva toast, y por el mismo motivo que categorizar mas uno propio: en una conversacion
- * el fallo tiene un sitio evidente donde ponerse, que es la respuesta que no llego. Un toast se
- * va solo a los pocos segundos y deja el hilo con un mensaje del usuario y nada debajo, sin
- * pista de si se esta esperando o si aquello fallo.
+ * Tampoco lleva toast: en una conversacion el fallo tiene un sitio evidente donde ponerse, que es
+ * la respuesta que no llego. Un toast se va solo y deja el hilo sin pista de que paso.
  */
 export function useChat() {
   return useMutation({

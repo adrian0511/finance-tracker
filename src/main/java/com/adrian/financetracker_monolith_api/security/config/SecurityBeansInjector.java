@@ -41,13 +41,10 @@ public class SecurityBeansInjector {
     }
 
     /**
-     * Lanza {@link UsernameNotFoundException} y no la excepcion propia del dominio a proposito:
-     * es la unica que {@code DaoAuthenticationProvider} sabe tapar. Con
-     * {@code hideUserNotFoundExceptions} (true por defecto) la convierte en un
-     * {@code BadCredentialsException} indistinguible del de una contrasena mal puesta, asi que
-     * el "ese usuario no existe" no llega a salir de aqui. Con una RuntimeException cualquiera
-     * la envolvia en un InternalAuthenticationServiceException y su mensaje acababa en la
-     * respuesta del login.
+     * {@link UsernameNotFoundException} y no la del dominio: es la unica que
+     * {@code DaoAuthenticationProvider} tapa, convirtiendola en un {@code BadCredentialsException}
+     * indistinguible del de una contrasena mal puesta. Con otra RuntimeException, su mensaje
+     * acababa en la respuesta del login y delataba que usuarios existen.
      */
     @Bean
     UserDetailsService userDetailsService() {

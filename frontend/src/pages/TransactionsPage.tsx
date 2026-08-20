@@ -32,12 +32,11 @@ import {
 } from '@/utils/transactionFilter'
 
 /**
- * El importe se valida como texto y se convierte al enviar: un input numerico da siempre string, y
- * con z.coerce el tipo de entrada del formulario y el de salida del esquema dejan de coincidir.
+ * El importe se valida como texto y se convierte al enviar: con `z.coerce` el tipo de entrada del
+ * formulario y el de salida del esquema dejan de coincidir.
  *
- * Se pide mayor que 0 aunque el backend acepte @Min(0): un movimiento de 0 no significa nada y
- * solo ensucia los informes. Y categoria no vacia, aunque el backend solo exija @NotNull, porque
- * es la clave por la que se agrupa el desglose por categorias.
+ * Mas estricto que el backend a proposito: importe > 0 (un movimiento de 0 solo ensucia los
+ * informes) y categoria no vacia (es la clave por la que agrupa el desglose).
  */
 const PAGE_SIZE = 20
 
@@ -50,22 +49,14 @@ const transactionSchema = z.object({
     .min(1, 'Escribe un importe')
     .refine((value) => Number(value) > 0, 'El importe tiene que ser mayor que 0'),
   category: z.string().trim().min(1, 'Escribe una categoría').max(255, 'Máximo 255 caracteres'),
-  /**
-   * No se envia: TransactionRequest no tiene descripcion y la entidad tampoco. Vive en el
-   * formulario solo para darle al modelo algo que clasificar, y por eso no se valida — el alta
-   * no depende de ella.
-   */
+  /** No se envia: solo existe para darle al modelo algo que clasificar. */
   description: z.string(),
 })
 
 /**
- * Tope de lo que se acepta como categoria sugerida. El backend le pide al modelo una palabra de
- * una lista cerrada, pero un modelo puede desobedecer y devolver una frase; metida en el campo
- * dejaria el formulario invalido (max 255) o, peor, colaria un parrafo como categoria y ensuciaria
- * el desglose, que agrupa por ese texto.
- *
- * El tope es por longitud y no por comparar contra la lista: esa lista es del backend, y copiarla
- * aqui seria un sitio mas que actualizar cada vez que se toque alla.
+ * Tope de la categoria sugerida: al modelo se le pide una palabra de una lista cerrada, pero puede
+ * desobedecer y devolver una frase, que colaria un parrafo en el desglose. Por longitud y no
+ * comparando contra la lista, que esa vive en el backend y copiarla aqui seria duplicarla.
  */
 const MAX_SUGGESTION_LENGTH = 40
 
@@ -81,13 +72,12 @@ export default function TransactionsPage() {
   const createTransaction = useCreateTransaction()
   const deleteTransaction = useDeleteTransaction()
 
-  // El filtro vive en la URL y no en un estado local: asi el enlace desde el dashboard llega
-  // filtrado, se puede compartir tal cual y recargar no lo pierde.
+  // En la URL y no en estado local: el enlace desde el dashboard llega filtrado y recargar no
+  // lo pierde.
   const [searchParams, setSearchParams] = useSearchParams()
   const filter = readFilter(searchParams)
 
-  // replace y no push: son controles discretos y se toquetean varias veces seguidas. Con push,
-  // salir de la pantalla obligaria a pulsar «atras» una vez por cada vez que se movio un filtro.
+  // replace y no push: con push, salir obligaria a pulsar «atras» una vez por cada filtro tocado.
   const updateFilter = (patch: Partial<TransactionFilter>) =>
     setSearchParams(filterToParams({ ...filter, ...patch }), { replace: true })
 
@@ -112,21 +102,17 @@ export default function TransactionsPage() {
   })
 
   const categorize = useCategorize()
-  // Se guarda aparte de la mutacion porque no todo fallo es un error de red: si el modelo
-  // contesta algo que no sirve como categoria, la peticion fue un exito y el usuario tiene que
-  // enterarse igual.
+  // Aparte de la mutacion: si el modelo contesta algo que no sirve, la peticion fue un exito.
   const [suggestionFailed, setSuggestionFailed] = useState(false)
 
-  // useWatch y no el watch() de useForm: aquel devuelve una funcion nueva en cada render y el
-  // React Compiler, al no poder memoizarla, se salta la pagina entera. Este es un hook y devuelve
-  // el valor, que ademas es lo unico que hace falta.
+  // useWatch y no watch(): aquel devuelve una funcion nueva en cada render y el React Compiler,
+  // al no poder memoizarla, se salta la pagina entera.
   const description = useWatch({ control, name: 'description' })
   const canSuggest = description.trim().length > 0 && !categorize.isPending
 
   /**
-   * Rellena el campo, no lo envia ni lo bloquea: la sugerencia es un punto de partida y el
-   * usuario puede reescribirla encima. `shouldValidate` para que, si el campo estaba en rojo por
-   * vacio, el error se vaya al llenarse.
+   * Rellena el campo, no lo envia: la sugerencia es un punto de partida y se puede reescribir.
+   * `shouldValidate` para que el error de campo vacio se vaya al llenarse.
    */
   const suggestCategory = () => {
     setSuggestionFailed(false)
@@ -140,9 +126,7 @@ export default function TransactionsPage() {
         }
         setValue('category', suggestion, { shouldValidate: true, shouldDirty: true })
       },
-      // Vale cualquier fallo, no solo el 503 de «modelo no disponible»: con un modelo gratuito lo
-      // mas probable es un 429 por cuota, que el backend deja pasar con su codigo original. Se
-      // avisa igual, porque para quien esta rellenando el formulario los dos casos son el mismo.
+      // Cualquier fallo, no solo el 503: para quien rellena el formulario todos son el mismo.
       onError: () => setSuggestionFailed(true),
     })
   }
@@ -150,16 +134,14 @@ export default function TransactionsPage() {
   const accountNames = new Map((accounts ?? []).map((account) => [account.id, account.name]))
   const hasAccounts = accounts !== undefined && accounts.length > 0
 
-  // Las categorias del desplegable salen de todos los movimientos, no de los que quedan tras
-  // filtrar: si salieran de los visibles, elegir una categoria dejaria el desplegable con esa
-  // sola opcion y no habria forma de cambiar a otra.
+  // De todos los movimientos y no de los visibles: si no, elegir una categoria dejaria el
+  // desplegable con esa sola opcion.
   const { named, hasUncategorized } = availableCategories(transactions ?? [])
   const visible = (transactions ?? []).filter((transaction) => matches(transaction, filter))
   // La query string es la clave de reinicio: al cambiar el filtro hay que volver a la pagina 1.
   const pages = usePagination(visible, PAGE_SIZE, searchParams.toString())
 
-  // El cuerpo se arma campo a campo en vez de esparcir `values`: `description` no existe en
-  // TransactionRequest y no tiene por que viajar.
+  // Campo a campo y no esparciendo `values`: `description` no tiene por que viajar.
   const onSubmit = handleSubmit((values) => {
     createTransaction.mutate(
       {
@@ -305,8 +287,8 @@ export default function TransactionsPage() {
           onClear={hasFilter(filter) ? () => setSearchParams({}, { replace: true }) : undefined}
           note={
             filter.from !== null || filter.to !== null ? (
-              // El rango llega desde el grafico anual del dashboard y aqui no hay control para
-              // tocarlo: se dice cual es y se puede quitar, que es lo unico que hace falta.
+              // Llega del grafico anual del dashboard y aqui no hay control para tocarlo: se
+              // dice cual es y se puede quitar.
               <p className="flex items-center gap-2 text-sm text-tinta-suave">
                 Fechas:
                 <span className="rounded-full bg-superficie-alta px-3 py-1">

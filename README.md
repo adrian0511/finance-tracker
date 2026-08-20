@@ -215,7 +215,7 @@ jwt:
   expiration: 30        # minutos
 
 ai:
-  api-key: ${API_KEY}   # variable de entorno, nunca en el repo
+  api-key: ${API_KEY}   # del .env o del entorno, nunca en el repo
   model: openai/gpt-oss-20b:free
   connect-timeout: 10s
   read-timeout: 60s     # de INACTIVIDAD, no de duración
@@ -228,11 +228,15 @@ ai:
 > el modelo genera, así que la conexión nunca se queda inactiva. El tope total está en
 > `AIServiceImpl.TOTAL_TIMEOUT`.
 
-La `API_KEY` se pasa por entorno. En local va bien un `.env` (ignorado por git):
+**La `API_KEY` se lee de un archivo `.env` en la raiz**, que esta en `.gitignore` y no se
+commitea. Lo carga la dependencia `spring-dotenv`, asi que no hay que exportar nada a mano:
 
 ```bash
-set -a && . ./.env && set +a
+echo 'API_KEY=tu-clave-de-openrouter' > .env
 ```
+
+Una variable de entorno de verdad sigue teniendo prioridad sobre el archivo, que es lo que hace
+falta en produccion.
 
 ---
 

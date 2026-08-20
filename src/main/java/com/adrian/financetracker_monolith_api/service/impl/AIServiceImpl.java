@@ -37,9 +37,8 @@ import java.util.stream.Collectors;
 public class AIServiceImpl implements AIService {
 
     /**
-     * Lista cerrada a proposito: Transaction.category es un String libre, asi que si el modelo
-     * inventa categorias los informes por categoria se fragmentan (Comida / Alimentacion / comida
-     * serian tres grupos distintos). "Otros" es la salida para lo que no encaje.
+     * Cerrada a proposito: {@code category} es texto libre, y si el modelo inventa categorias los
+     * informes se fragmentan (Comida / Alimentacion / comida serian tres grupos).
      */
     private static final String CATEGORIES =
             "Comida, Transporte, Vivienda, Servicios, Salud, Educacion, Entretenimiento, Compras, Ahorro, Otros";
@@ -72,15 +71,12 @@ public class AIServiceImpl implements AIService {
 
     @Override
     public AIResponse generateAnalysis(UUID userId) {
-        // El orden y el corte los hace la base de datos: traerse el historico entero para
-        // quedarse con las ultimas ANALYSIS_SAMPLE_SIZE crecia con cada movimiento del usuario.
+        // El orden y el corte los hace la query: traerse el historico entero crecia sin limite.
         List<Transaction> txs = repository.findRecentTransactions(userId,
                 PageRequest.of(0, ANALYSIS_SAMPLE_SIZE));
 
         if (txs.isEmpty()) {
-            // Deja constancia de que se corto ANTES de llamar al modelo. Sin esta linea, un
-            // analisis vacio y uno que fallo se ven igual en el log: en los dos casos no aparece
-            // ninguna llamada.
+            // Sin esta linea, en el log un analisis vacio y uno que fallo se ven igual.
             log.debug("Analisis para el usuario {}: no hay movimientos, no se llama al modelo", userId);
             return respond("Todavia no hay movimientos registrados, asi que no se puede analizar "
                     + "nada. Registra algunos ingresos y gastos y vuelve a pedir el analisis.");
@@ -139,8 +135,7 @@ public class AIServiceImpl implements AIService {
         LocalDateTime start = month.atDay(1).atStartOfDay();
         LocalDateTime end = month.atEndOfMonth().atTime(LocalTime.MAX);
 
-        // El informe solo necesita cifras agregadas, asi que no se trae ni un movimiento: cuenta,
-        // totales y desglose salen ya sumados de la base de datos.
+        // No se trae ni un movimiento: cuenta, totales y desglose salen ya sumados de la query.
         long total = repository.countByUserAndDateBetween(userId, start, end);
 
         if (total == 0) {
@@ -156,9 +151,8 @@ public class AIServiceImpl implements AIService {
         log.debug("Informe de {} para el usuario {} ({} movimientos): ingresos={}, gastos={}",
                 month, userId, total, incomes, expenses);
 
-        // Sin el desglose por categoria el modelo solo ve dos numeros y no puede decir nada
-        // especifico: es la diferencia entre "gastas mucho" y "el 45% se te va en Comida".
-        // La query ya lo devuelve de mayor a menor.
+        // Sin el desglose el modelo solo ve dos numeros: la diferencia entre "gastas mucho" y
+        // "el 45% se te va en Comida". La query ya lo devuelve de mayor a menor.
         String byCategory = repository.findExpensesByCategory(userId, start, end).stream()
                 .map(c -> "- %s: %.2f".formatted(category(c.getCategory()), c.getTotal()))
                 .collect(Collectors.joining("\n"));
@@ -244,15 +238,9 @@ public class AIServiceImpl implements AIService {
     }
 
     /**
-     * Unico punto por el que se llama al modelo, para que el log salga igual en los cuatro sitios.
-     *
-     * Registra <b>cuanto tarda</b> y <b>cuanto ocupa</b> lo que va y lo que vuelve, que es lo que
-     * antes no quedaba en ningun sitio: una llamada a un modelo gratuito puede tardar segundos o
-     * acabar en un 429 por cuota, y sin esto "la IA va lenta" no se podia ni medir ni distinguir
-     * de un fallo. El del error lo pone el handler de {@code AiClientException}, que ve el motivo.
-     *
-     * Se registran <b>longitudes, no contenidos</b>: el prompt de usuario lleva sus movimientos o
-     * lo que le escriba al chat, y eso no va a un fichero de log.
+     * Unico punto por el que se llama al modelo: aqui estan el log y el tope de tiempo de los
+     * cuatro endpoints. Se registran <b>longitudes, no contenidos</b> — el prompt de usuario lleva
+     * sus movimientos o lo que le escriba al chat.
      */
     private String generate(String kind, String systemPrompt, String userPrompt) {
         long startedAt = System.currentTimeMillis();
@@ -288,9 +276,8 @@ public class AIServiceImpl implements AIService {
     }
 
     /**
-     * Suma sobre la muestra ya cargada, no sobre todo el historico: son los totales DE ESAS
-     * transacciones, que es justo lo que se le dice al modelo. Sumarlo en la base de datos daria
-     * el total de siempre, que no es el mismo numero.
+     * Suma sobre la muestra ya cargada, no sobre el historico: son los totales de las
+     * transacciones que se le pasan al modelo, que no es el mismo numero que el total de siempre.
      */
     private BigDecimal sum(List<Transaction> txs, Type type) {
         return txs.stream()
