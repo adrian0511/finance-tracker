@@ -6,6 +6,43 @@ Un solo repositorio y un solo artefacto: el backend expone la API REST y **sirve
 desde el propio jar**, en el mismo origen. No hay CORS, ni dos despliegues, ni una URL de API que
 configurar.
 
+![Panel de resumen](docs/screenshots/dashboard.png)
+
+---
+
+## 📸 La aplicación
+
+**La misma pantalla en tema oscuro.** No hay dos hojas de estilo: todo color sale de un token de
+`index.css` que tiene valor en los dos temas, incluidas las dos paletas de los gráficos, que se
+validan por contraste y daltonismo con `pnpm palette`.
+
+![Resumen en tema oscuro](docs/screenshots/dashboard-dark.png)
+
+**Detalle de una meta**, con la proyección a tres escenarios. La banda rayada es el margen del
+ritmo de ahorro, no tres predicciones distintas: si se cierra en una línea es que el ahorro es
+constante, no que falte un dato.
+
+![Proyección de una meta de ahorro](docs/screenshots/goal-detail.png)
+
+**Movimientos**, con el alta, el filtro por tipo y categoría y la paginación. El enlace
+«Sugerir categoría» es el que le pide al modelo que clasifique la descripción.
+
+![Pantalla de movimientos](docs/screenshots/transactions.png)
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/goals.png" alt="Listado de metas"></td>
+    <td width="50%"><img src="docs/screenshots/login.png" alt="Pantalla de acceso"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Metas de ahorro</sub></td>
+    <td align="center"><sub>Acceso</sub></td>
+  </tr>
+</table>
+
+<sub>Las capturas son de un usuario de demostración con datos generados; no son cuentas
+reales.</sub>
+
 ---
 
 ## 🚀 Descripción
