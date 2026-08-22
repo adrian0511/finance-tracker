@@ -102,6 +102,20 @@ git checkout main && git merge --ff-only dev && git push origin main
 
 Si te encuentras en `main` al empezar a tocar algo, cámbiate a `dev` antes de editar.
 
+## El README va con el cambio
+
+**Todo cambio que se note desde fuera se refleja en el `README.md`, en el mismo commit.** Un
+endpoint nuevo o cambiado, una dependencia, una variable de configuración, una forma distinta de
+ejecutar, una pantalla nueva: si algo de eso deja el README diciendo algo que ya no es cierto, se
+actualiza antes de commitear.
+
+No es burocracia — ya pasó: el README describía `GET /api/reports/mensual`, que no existe, y la
+base de datos con un nombre con el que la aplicación no arranca. Quien clonara el repo siguiéndolo
+no llegaba a levantarlo.
+
+Vale lo mismo para los dos `CLAUDE.md` y para las capturas de `docs/screenshots/`: si cambia una
+pantalla, la captura que la enseña deja de ser verdad.
+
 ## Configuración de IA
 
 `application.yaml`, sección `ai:`. La librería `prompt-link` habla con OpenRouter
