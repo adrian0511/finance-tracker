@@ -16,9 +16,8 @@ configurar.
 `index.css` que tiene valor en los dos temas, incluidas las dos paletas de los gráficos, que se
 validan por contraste y daltonismo con `pnpm palette`.
 
-El selector tiene tres estados y está en todas las pantallas, también en las de acceso: **claro**,
-**oscuro** y **sistema**, que no es un alias de claro — sigue al sistema operativo y lo sigue
-haciendo si cambia con la página abierta.
+El selector tiene tres estados: **claro**, **oscuro** y **sistema**, que no es un alias de claro
+— sigue al sistema operativo y lo sigue haciendo si cambia con la página abierta.
 
 ![Resumen en tema oscuro](docs/screenshots/dashboard-dark.png)
 
@@ -40,7 +39,7 @@ constante, no que falte un dato.
   </tr>
   <tr>
     <td align="center"><sub>Metas de ahorro</sub></td>
-    <td align="center"><sub>Acceso — el selector de tema también está aquí, antes de entrar</sub></td>
+    <td align="center"><sub>Acceso</sub></td>
   </tr>
 </table>
 
@@ -299,6 +298,25 @@ java -jar target/financetracker-monolith-api-0.0.1-SNAPSHOT.jar
 ```
 
 → <http://localhost:8080>
+
+### Con Docker
+
+Levanta la aplicación y su Postgres, sin instalar Java ni Node ni la base de datos:
+
+```bash
+cp .env.example .env     # y pon dentro tu API_KEY
+docker compose up --build
+```
+
+→ <http://localhost:8080>
+
+La base queda en un volumen (`db-data`), así que los datos sobreviven a `docker compose down`;
+para empezar de cero, `docker compose down -v`. El Postgres se publica en el **5433** del host
+para no chocar con uno ya instalado en la máquina.
+
+El `Dockerfile` es de dos etapas: la primera compila con el JDK (y de paso el frontend, que ya lo
+hace Maven solo), y la imagen que queda solo lleva el jar sobre un JRE, corriendo con un usuario
+sin privilegios.
 
 ### Desarrollo del frontend
 

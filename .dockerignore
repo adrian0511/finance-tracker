@@ -1,0 +1,29 @@
+# Lo que NO entra al contexto de build. Importante por dos motivos: el contexto se manda entero
+# al daemon (y frontend/node_modules son cientos de MB), y algunas de estas cosas no deben acabar
+# nunca dentro de una imagen.
+
+# Secretos
+.env
+*.env
+!.env.example
+
+# Artefactos de build: los regenera el propio Dockerfile
+target/
+frontend/node_modules/
+frontend/node/
+src/main/resources/static/
+
+# Historial y herramientas
+.git/
+.github/
+.idea/
+.vscode/
+.mcp.json
+.claude/
+
+# Documentacion: no cambia la imagen y invalidaria la cache al editarla
+docs/
+*.md
+
+# Logs y temporales
+*.log

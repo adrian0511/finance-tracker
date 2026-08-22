@@ -1,0 +1,53 @@
+# Levanta la aplicacion y su Postgres:  docker compose up --build
+#
+# Hace falta un .env en la raiz con al menos API_KEY (ver .env.example). Compose lo lee por su
+# cuenta para rellenar las variables de aqui abajo; no es el mismo mecanismo que spring-dotenv,
+# que es el que lo lee al arrancar fuera de Docker.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: financetracker
+      POSTGRES_USER: financetracker_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-12345}
+    volumes:
+      # En /var/lib/postgresql y NO en .../data: a partir de la imagen 18 los datos van en un
+      # subdirectorio por version mayor, y montar sobre data hace que el contenedor se niegue a
+      # arrancar. Comprobado: con el montaje viejo sale «unused mount/volume» y muere.
+      - db-data:/var/lib/postgresql
+    # Solo al host, y no al mundo: la aplicacion llega por la red interna de compose. El puerto
+    # 5433 fuera para no chocar con un Postgres ya instalado en la maquina.
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      # Sin esto la aplicacion arranca antes de que la base acepte conexiones y muere al primer
+      # intento: depends_on por si solo espera a que el contenedor exista, no a que sirva.
+      test: ["CMD-SHELL", "pg_isready -U financetracker_user -d financetracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # El host es el nombre del servicio, no localhost: dentro del contenedor localhost es el
+      # propio contenedor. Esto pisa lo que dice application.yaml.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/financetracker
+      SPRING_DATASOURCE_USERNAME: financetracker_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-12345}
+      # Sin valor por defecto a proposito: si falta, la aplicacion no arranca, que es mejor que
+      # arrancar y fallar en la primera llamada al modelo.
+      API_KEY: ${API_KEY:?falta API_KEY, ponla en el .env de la raiz}
+      # JWT_SECRET no se pone aqui para no duplicar el secreto en dos archivos: si no viene,
+      # manda el de application.yaml. En produccion, ponlo por entorno y cambialo.
+      JWT_SECRET: ${JWT_SECRET:-QWRyaWFuMDMxMCBtaSBjbGF2ZSBlcyBtdXkgc2VndXJh}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:

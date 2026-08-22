@@ -87,6 +87,21 @@ mano ni lo commitees, lo regenera el build.
 No se puede compilar en este entorno de forma remota sin acceso a Maven Central — verifícalo
 tú directamente en tu máquina.
 
+## Ramas
+
+**Todo el trabajo se hace en `dev`.** No se commitea nunca directamente en `main`.
+
+`main` avanza solo desde `dev` y en **fast-forward** (`git merge --ff-only dev`): la historia del
+repo es lineal y no tiene ni un commit de merge, así que no la rompas con uno.
+
+```bash
+git checkout dev          # aquí van todos los cambios
+# ... commit en dev, y push a origin/dev
+git checkout main && git merge --ff-only dev && git push origin main
+```
+
+Si te encuentras en `main` al empezar a tocar algo, cámbiate a `dev` antes de editar.
+
 ## Configuración de IA
 
 `application.yaml`, sección `ai:`. La librería `prompt-link` habla con OpenRouter
